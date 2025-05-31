@@ -167,8 +167,8 @@ impl Board {
     }
 
     fn clear_squares_and_pieces(&mut self) {
-        for (i, ofs) in ON_AND_OFF_BOARD_SQUARES.iter().enumerate() {
-            if *ofs == 0 {
+        for (i, oobs) in ON_AND_OFF_BOARD_SQUARES.iter().enumerate() {
+            if *oobs == 0 {
                 self.squares[i] = OFF_BOARD_SQUARE;
             } else {
                 self.squares[i] = EMPTY_SQUARE;
@@ -286,36 +286,32 @@ impl Board {
     }
 
     fn set_ep(&mut self, fen_ep: &str) {
-        if fen_ep == "-" {
+        let file = match fen_ep.chars().nth(0).unwrap_or('0') {
+            'a' => 4,
+            'b' => 5,
+            'c' => 6,
+            'd' => 7,
+            'e' => 8,
+            'f' => 9,
+            'g' => 10,
+            'h' => 11,
+            _ => 0,
+        };
+        let rank = match fen_ep.chars().nth(1).unwrap_or('0') {
+            '8' => 2,
+            '7' => 3,
+            '6' => 4,
+            '5' => 5,
+            '4' => 6,
+            '3' => 7,
+            '2' => 8,
+            '1' => 9,
+            _ => 0,
+        };
+        if file == 0 || rank == 0 {
             self.ep_index = 0;
         } else {
-            let file = match fen_ep.chars().nth(0).unwrap_or('0') {
-                'a' => 4,
-                'b' => 5,
-                'c' => 6,
-                'd' => 7,
-                'e' => 8,
-                'f' => 9,
-                'g' => 10,
-                'h' => 11,
-                _ => 0,
-            };
-            let rank = match fen_ep.chars().nth(1).unwrap_or('0') {
-                '8' => 2,
-                '7' => 3,
-                '6' => 4,
-                '5' => 5,
-                '4' => 6,
-                '3' => 7,
-                '2' => 8,
-                '1' => 9,
-                _ => 0,
-            };
-            if file == 0 || rank == 0 {
-                self.ep_index = 0;
-            } else {
-                self.ep_index = rank * 16 + file;
-            }
+            self.ep_index = rank * 16 + file;
         }
     }
 }
