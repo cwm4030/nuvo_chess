@@ -2,7 +2,7 @@ use crate::board_state::board::Board;
 
 pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
     let parts: Vec<&str> = command.split_whitespace().collect();
-    let first_part = parts.get(0).unwrap_or(&"unknown");
+    let first_part = parts.first().unwrap_or(&"unknown");
     match *first_part {
         "uci" => {
             println!("id name nuvo_chess");
@@ -14,9 +14,7 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
             println!("readyok");
             true
         }
-        "quit" => {
-            false
-        }
+        "quit" => false,
         "position" => {
             if parts.len() > 2 && parts[1] == "fen" {
                 let fen = parts[2..].join(" ");

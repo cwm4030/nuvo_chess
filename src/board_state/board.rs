@@ -1,7 +1,12 @@
+use crate::board_state::castling::{
+    BLACK_KING, BLACK_QUEEN, WHITE_KING, WHITE_QUEEN, get_castling_rights_string,
+};
 use crate::board_state::piece::Piece;
-use crate::board_state::piece_type::{ EMPTY_SQUARE, OFF_BOARD_SQUARE, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, WHITE, BLACK, is_king, is_white, is_black };
-use crate::board_state::square_index::{ ON_BOARD_SQUARES, ON_AND_OFF_BOARD_SQUARES, SQUARE_NAMES };
-use crate::board_state::castling::{ WHITE_KING, WHITE_QUEEN, BLACK_KING, BLACK_QUEEN, get_castling_rights_string };
+use crate::board_state::piece_type::{
+    BISHOP, BLACK, EMPTY_SQUARE, KING, KNIGHT, OFF_BOARD_SQUARE, PAWN, QUEEN, ROOK, WHITE,
+    is_black, is_king, is_white,
+};
+use crate::board_state::square_index::{ON_AND_OFF_BOARD_SQUARES, ON_BOARD_SQUARES, SQUARE_NAMES};
 
 #[derive(Copy, Clone)]
 pub struct Board {
@@ -19,7 +24,10 @@ impl Board {
         Board {
             stm: 0,
             squares: [0; 192],
-            pieces: [Piece { piece_type: 0, square_index: 0 }; 34],
+            pieces: [Piece {
+                piece_type: 0,
+                square_index: 0,
+            }; 34],
             ep_index: 0,
             castling_rights: 0,
             halfmove: 0,
@@ -142,7 +150,7 @@ impl Board {
 
     pub fn set_from_fen(&mut self, fen: &str) {
         let fen_parts: Vec<&str> = fen.split_whitespace().collect();
-        let fen_pieces = fen_parts.get(0).unwrap_or(&"");
+        let fen_pieces = fen_parts.first().unwrap_or(&"");
         let fen_stm = fen_parts.get(1).unwrap_or(&"");
         let fen_castling = fen_parts.get(2).unwrap_or(&"");
         let fen_ep = fen_parts.get(3).unwrap_or(&"");
@@ -159,15 +167,18 @@ impl Board {
     }
 
     fn clear_squares_and_pieces(&mut self) {
-        for i in 0..192 {
-            if ON_AND_OFF_BOARD_SQUARES[i] == 0 {
+        for (i, ofs) in ON_AND_OFF_BOARD_SQUARES.iter().enumerate() {
+            if *ofs == 0 {
                 self.squares[i] = OFF_BOARD_SQUARE;
             } else {
                 self.squares[i] = EMPTY_SQUARE;
             }
         }
         for i in 0..34 {
-            self.pieces[i] = Piece { piece_type: 0, square_index: 0 };
+            self.pieces[i] = Piece {
+                piece_type: 0,
+                square_index: 0,
+            };
         }
     }
 
@@ -180,7 +191,7 @@ impl Board {
                 break;
             }
 
-            if c.is_digit(10) {
+            if c.is_ascii_digit() {
                 let empty_squares = c.to_digit(10).unwrap_or(0) as usize;
                 on_board_square_index += empty_squares;
             } else if c == '/' {
@@ -202,29 +213,52 @@ impl Board {
                     'K' => KING | WHITE,
                     _ => continue,
                 };
-                self.set_square_and_piece(square_index, piece_type, &mut white_pieces, &mut black_pieces);
+                self.set_square_and_piece(
+                    square_index,
+                    piece_type,
+                    &mut white_pieces,
+                    &mut black_pieces,
+                );
                 on_board_square_index += 1;
             }
         }
     }
 
-    fn set_square_and_piece(&mut self, square_index: usize, piece_type: u8, white_pieces: &mut usize, black_pieces: &mut usize) {
+    fn set_square_and_piece(
+        &mut self,
+        square_index: usize,
+        piece_type: u8,
+        white_pieces: &mut usize,
+        black_pieces: &mut usize,
+    ) {
         if is_white(piece_type) {
             if is_king(piece_type) {
                 self.squares[square_index] = 2;
-                self.pieces[2] = Piece { piece_type, square_index: square_index as u8 };
+                self.pieces[2] = Piece {
+                    piece_type,
+                    square_index: square_index as u8,
+                };
             } else {
                 self.squares[square_index] = *white_pieces as u8;
-                self.pieces[*white_pieces] = Piece { piece_type, square_index: square_index as u8 };
+                self.pieces[*white_pieces] = Piece {
+                    piece_type,
+                    square_index: square_index as u8,
+                };
                 *white_pieces += 1;
             }
         } else if is_black(piece_type) {
             if is_king(piece_type) {
                 self.squares[square_index] = 18;
-                self.pieces[18] = Piece { piece_type, square_index: square_index as u8 };
+                self.pieces[18] = Piece {
+                    piece_type,
+                    square_index: square_index as u8,
+                };
             } else {
                 self.squares[square_index] = *black_pieces as u8;
-                self.pieces[*black_pieces] = Piece { piece_type, square_index: square_index as u8 };
+                self.pieces[*black_pieces] = Piece {
+                    piece_type,
+                    square_index: square_index as u8,
+                };
                 *black_pieces += 1;
             }
         }

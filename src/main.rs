@@ -9,6 +9,8 @@ fn main() {
     let mut input = String::from("position startpos");
     while uci_execute_command(&mut board, &input) {
         input.clear();
-        std::io::stdin().read_line(&mut input).expect("Failed to read line");
+        std::io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
     }
 }
