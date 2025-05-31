@@ -9,7 +9,6 @@ pub struct Board {
     pub squares: [u8; 192],
     pub pieces: [Piece; 34],
     pub ep_index: u8,
-    pub ep_pawn_index: u8,
     pub castling_rights: u8,
     pub halfmove: u8,
     pub fullmove: u16,
@@ -22,14 +21,81 @@ impl Board {
             squares: [0; 192],
             pieces: [Piece { piece_type: 0, square_index: 0 }; 34],
             ep_index: 0,
-            ep_pawn_index: 0,
             castling_rights: 0,
             halfmove: 0,
             fullmove: 1,
         }
     }
 
-    pub fn print_board(&self) {
+    pub fn print_fancy_board(&self) {
+        let light_background = "\x1b[48;5;39m";
+        let dark_background = "\x1b[48;5;23m";
+        let white = "\x1b[38;5;15m";
+        let black = "\x1b[38;5;0m";
+        let reset = "\x1b[0m";
+        let mut foreground = white;
+        let mut background = light_background;
+
+        let stm_string = match self.stm {
+            WHITE => "White",
+            BLACK => "Black",
+            _ => "Unknown",
+        };
+        let castling_rights_string = get_castling_rights_string(self.castling_rights);
+        let ep_string = SQUARE_NAMES[self.ep_index as usize];
+        println!("Side to move: {}", stm_string);
+        println!("Castling rights: {}", castling_rights_string);
+        println!("En passant square: {}", ep_string);
+        println!("Halfmove clock: {}", self.halfmove);
+        println!("Fullmove number: {}", self.fullmove);
+        for rank in 0..8 {
+            print!(" {} ", 8 - rank);
+            for file in 0..8 {
+                let square_index = ON_BOARD_SQUARES[rank * 8 + file] as usize;
+                let piece_index = self.squares[square_index] as usize;
+                let piece = self.pieces[piece_index].piece_type;
+                let piece_print = match piece {
+                    EMPTY_SQUARE => "   ",
+                    x if x == (PAWN | BLACK) => " ♟ ",
+                    x if x == (KNIGHT | BLACK) => " ♞ ",
+                    x if x == (BISHOP | BLACK) => " ♝ ",
+                    x if x == (ROOK | BLACK) => " ♜ ",
+                    x if x == (QUEEN | BLACK) => " ♛ ",
+                    x if x == (KING | BLACK) => " ♚ ",
+                    x if x == (PAWN | WHITE) => " ♟ ",
+                    x if x == (KNIGHT | WHITE) => " ♞ ",
+                    x if x == (BISHOP | WHITE) => " ♝ ",
+                    x if x == (ROOK | WHITE) => " ♜ ",
+                    x if x == (QUEEN | WHITE) => " ♛ ",
+                    x if x == (KING | WHITE) => " ♚ ",
+                    _ => "   ",
+                };
+                if is_white(piece) {
+                    foreground = white;
+                } else if is_black(piece) {
+                    foreground = black;
+                }
+                print!("{}{}", background, foreground);
+                if background == light_background {
+                    background = dark_background;
+                } else {
+                    background = light_background;
+                }
+                print!("{}", piece_print);
+            }
+            if background == light_background {
+                background = dark_background;
+            } else {
+                background = light_background;
+            }
+            println!("{}", reset);
+        }
+        print!("{}", reset);
+        println!("    a  b  c  d  e  f  g  h  ");
+        println!();
+    }
+
+    pub fn print_simple_board(&self) {
         let stm_string = match self.stm {
             WHITE => "White",
             BLACK => "Black",
@@ -188,7 +254,6 @@ impl Board {
     fn set_ep(&mut self, fen_ep: &str) {
         if fen_ep == "-" {
             self.ep_index = 0;
-            self.ep_pawn_index = 0;
         } else {
             let file = match fen_ep.chars().nth(0).unwrap_or('0') {
                 'a' => 4,
@@ -213,13 +278,6 @@ impl Board {
                 _ => 0,
             };
             self.ep_index = rank * 16 + file;
-            if self.ep_index != 0 && self.stm == WHITE {
-                self.ep_pawn_index = self.ep_index + 16;
-            } else if self.ep_index != 0 && self.stm == BLACK {
-                self.ep_pawn_index = self.ep_index - 16;
-            } else {
-                self.ep_pawn_index = 0;
-            };
         }
     }
 }
