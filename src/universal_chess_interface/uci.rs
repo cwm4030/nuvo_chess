@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use crate::board_state::board::Board;
 
 pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
@@ -14,7 +16,6 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
             println!("readyok");
             true
         }
-        "quit" => false,
         "position" => {
             if parts.len() > 2 && parts[1] == "fen" {
                 let fen = parts[2..].join(" ");
@@ -28,6 +29,12 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
             }
             true
         }
+        "clear" => {
+            print!("\x1B[2J\x1B[3J\x1B[H");
+            std::io::stdout().flush().unwrap();
+            true
+        }
+        "quit" => false,
         _ => true,
     }
 }
