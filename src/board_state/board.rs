@@ -311,7 +311,11 @@ impl Board {
                 '1' => 9,
                 _ => 0,
             };
-            self.ep_index = rank * 16 + file;
+            if file == 0 || rank == 0 {
+                self.ep_index = 0;
+            } else {
+                self.ep_index = rank * 16 + file;
+            }
         }
     }
 }
