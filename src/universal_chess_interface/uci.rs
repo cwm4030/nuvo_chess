@@ -23,9 +23,11 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
             } else if parts.len() > 1 && parts[1] == "startpos" {
                 board.set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
             } else if parts.len() > 1 && parts[1] == "print" {
-                board.print_fancy_board();
+                board.print_board(false);
             } else if parts.len() > 1 && parts[1] == "print_simple" {
-                board.print_simple_board();
+                board.print_board(true);
+            } else if parts.len() > 1 && parts[1] == "print_ascii" {
+                board.print_ascii_board();
             }
             true
         }

@@ -4,7 +4,7 @@ use crate::board_state::castling::{
 use crate::board_state::piece::Piece;
 use crate::board_state::piece_type::{
     BISHOP, BLACK, EMPTY_SQUARE, KING, KNIGHT, OFF_BOARD_SQUARE, PAWN, QUEEN, ROOK, WHITE,
-    is_black, is_king, is_white,
+    get_piece_string, is_black, is_king, is_white,
 };
 use crate::board_state::square_index::{ON_AND_OFF_BOARD_SQUARES, ON_BOARD_SQUARES, SQUARE_NAMES};
 
@@ -35,7 +35,7 @@ impl Board {
         }
     }
 
-    pub fn print_fancy_board(&self) {
+    pub fn print_board(&self, use_ascii_piece: bool) {
         let light_background = "\x1b[48;5;39m";
         let dark_background = "\x1b[48;5;23m";
         let white = "\x1b[38;5;15m";
@@ -61,26 +61,12 @@ impl Board {
             for file in 0..8 {
                 let square_index = ON_BOARD_SQUARES[rank * 8 + file] as usize;
                 let piece_index = self.squares[square_index] as usize;
-                let piece = self.pieces[piece_index].piece_type;
-                let piece_print = match piece {
-                    EMPTY_SQUARE => "   ",
-                    x if x == (PAWN | BLACK) => " ♟ ",
-                    x if x == (KNIGHT | BLACK) => " ♞ ",
-                    x if x == (BISHOP | BLACK) => " ♝ ",
-                    x if x == (ROOK | BLACK) => " ♜ ",
-                    x if x == (QUEEN | BLACK) => " ♛ ",
-                    x if x == (KING | BLACK) => " ♚ ",
-                    x if x == (PAWN | WHITE) => " ♟ ",
-                    x if x == (KNIGHT | WHITE) => " ♞ ",
-                    x if x == (BISHOP | WHITE) => " ♝ ",
-                    x if x == (ROOK | WHITE) => " ♜ ",
-                    x if x == (QUEEN | WHITE) => " ♛ ",
-                    x if x == (KING | WHITE) => " ♚ ",
-                    _ => "   ",
-                };
-                if is_white(piece) {
+                let piece_type = self.pieces[piece_index].piece_type;
+                let piece_string =
+                    get_piece_string(piece_type, use_ascii_piece).replace(" . ", "   ");
+                if is_white(piece_type) {
                     foreground = white;
-                } else if is_black(piece) {
+                } else if is_black(piece_type) {
                     foreground = black;
                 }
                 print!("{}{}", background, foreground);
@@ -89,7 +75,7 @@ impl Board {
                 } else {
                     background = light_background;
                 }
-                print!("{}", piece_print);
+                print!("{}", piece_string);
             }
             if background == light_background {
                 background = dark_background;
@@ -103,7 +89,7 @@ impl Board {
         println!();
     }
 
-    pub fn print_simple_board(&self) {
+    pub fn print_ascii_board(&self) {
         let stm_string = match self.stm {
             WHITE => "White",
             BLACK => "Black",
@@ -122,24 +108,9 @@ impl Board {
             for file in 0..8 {
                 let square_index = ON_BOARD_SQUARES[rank * 8 + file] as usize;
                 let piece_index = self.squares[square_index] as usize;
-                let piece = self.pieces[piece_index].piece_type;
-                let piece_print = match piece {
-                    EMPTY_SQUARE => " . ",
-                    x if x == (PAWN | BLACK) => " p ",
-                    x if x == (KNIGHT | BLACK) => " n ",
-                    x if x == (BISHOP | BLACK) => " b ",
-                    x if x == (ROOK | BLACK) => " r ",
-                    x if x == (QUEEN | BLACK) => " q ",
-                    x if x == (KING | BLACK) => " k ",
-                    x if x == (PAWN | WHITE) => " P ",
-                    x if x == (KNIGHT | WHITE) => " N ",
-                    x if x == (BISHOP | WHITE) => " B ",
-                    x if x == (ROOK | WHITE) => " R ",
-                    x if x == (QUEEN | WHITE) => " Q ",
-                    x if x == (KING | WHITE) => " K ",
-                    _ => " ? ",
-                };
-                print!("{}", piece_print);
+                let piece_type = self.pieces[piece_index].piece_type;
+                let piece_string = get_piece_string(piece_type, true);
+                print!("{}", piece_string);
             }
             println!("|");
         }

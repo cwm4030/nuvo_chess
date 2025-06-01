@@ -23,3 +23,37 @@ pub fn is_white(piece_type: u8) -> bool {
 pub fn is_black(piece_type: u8) -> bool {
     (piece_type & BLACK) != 0
 }
+
+pub fn get_piece_string(piece_type: u8, use_ascii_piece: bool) -> String {
+    if use_ascii_piece {
+        match piece_type {
+            EMPTY_SQUARE => " . ",
+            x if x == (PAWN | BLACK) => " p ",
+            x if x == (KNIGHT | BLACK) => " n ",
+            x if x == (BISHOP | BLACK) => " b ",
+            x if x == (ROOK | BLACK) => " r ",
+            x if x == (QUEEN | BLACK) => " q ",
+            x if x == (KING | BLACK) => " k ",
+            x if x == (PAWN | WHITE) => " P ",
+            x if x == (KNIGHT | WHITE) => " N ",
+            x if x == (BISHOP | WHITE) => " B ",
+            x if x == (ROOK | WHITE) => " R ",
+            x if x == (QUEEN | WHITE) => " Q ",
+            x if x == (KING | WHITE) => " K ",
+            _ => " ? ",
+        }
+        .to_string()
+    } else {
+        match piece_type & PIECE_MASK {
+            EMPTY_SQUARE => "   ",
+            PAWN => " ♟ ",
+            KNIGHT => " ♞ ",
+            BISHOP => " ♝ ",
+            ROOK => " ♜ ",
+            QUEEN => " ♛ ",
+            KING => " ♚ ",
+            _ => " ? ",
+        }
+        .to_string()
+    }
+}
