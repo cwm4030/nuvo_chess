@@ -9,18 +9,18 @@ impl CMoveList {
     pub fn new() -> Self {
         CMoveList {
             moves: [CMove {
-                from_square: 0,
-                to_square: 0,
+                from_index: 0,
+                to_index: 0,
                 promotion_piece: 0,
             }; 256],
             count: 0,
         }
     }
 
-    pub fn add_move(&mut self, from_square: u8, to_square: u8, promotion_piece: u8) {
+    pub fn add_move(&mut self, from_index: u8, to_index: u8, promotion_piece: u8) {
         self.moves[self.count] = CMove {
-            from_square,
-            to_square,
+            from_index,
+            to_index,
             promotion_piece,
         };
         self.count += 1;
