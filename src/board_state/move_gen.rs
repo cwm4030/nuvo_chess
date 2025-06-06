@@ -1,7 +1,7 @@
 use crate::board_state::{
     board::Board,
     c_move_list::CMoveList,
-    piece_type::{EMPTY_SQUARE, OFF_BOARD_SQUARE, WHITE, KNIGHT, QUEEN},
+    piece_type::{EMPTY_SQUARE, KNIGHT, OFF_BOARD_SQUARE, QUEEN, WHITE},
     square_index::{A8, H1},
 };
 
@@ -22,18 +22,18 @@ const PAWN_START_SQUARES: [u8; 192] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 16, 16, 16, 16, 16, 16, 16, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0,
+    0, 0, 0,
 ];
 const PAWN_PROMOTION_SQUARES: [u8; 192] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 16, 16, 16, 16, 16,
-    16, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 16, 16, 16, 16, 16, 16, 16, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0,
 ];
 const PAWN_WHITE_DIRECTIONS: [i16; 4] = [-16, -32, -17, -15];
 const PAWN_BLACK_DIRECTIONS: [i16; 4] = [16, 32, 17, 15];
@@ -48,8 +48,18 @@ pub fn generate_moves(board: &Board, c_move_list: &mut CMoveList) {
 
     if board.stm == WHITE {
         for i in 0..board.w_pawns {
-            generate_non_capture_pawn_moves(board, board.w_pawn_indexes[i as usize], &PAWN_WHITE_DIRECTIONS, c_move_list);
-            generate_capture_pawn_moves(board, board.w_pawn_indexes[i as usize], &PAWN_WHITE_DIRECTIONS, c_move_list);
+            generate_non_capture_pawn_moves(
+                board,
+                board.w_pawn_indexes[i as usize],
+                &PAWN_WHITE_DIRECTIONS,
+                c_move_list,
+            );
+            generate_capture_pawn_moves(
+                board,
+                board.w_pawn_indexes[i as usize],
+                &PAWN_WHITE_DIRECTIONS,
+                c_move_list,
+            );
         }
 
         for i in 0..board.w_knights {
@@ -91,8 +101,18 @@ pub fn generate_moves(board: &Board, c_move_list: &mut CMoveList) {
         generate_non_sliding_moves(board, board.w_king_index, &KING_DIRECTIONS, c_move_list);
     } else {
         for i in 0..board.b_pawns {
-            generate_non_capture_pawn_moves(board, board.b_pawn_indexes[i as usize], &PAWN_BLACK_DIRECTIONS, c_move_list);
-            generate_capture_pawn_moves(board, board.b_pawn_indexes[i as usize], &PAWN_BLACK_DIRECTIONS, c_move_list);
+            generate_non_capture_pawn_moves(
+                board,
+                board.b_pawn_indexes[i as usize],
+                &PAWN_BLACK_DIRECTIONS,
+                c_move_list,
+            );
+            generate_capture_pawn_moves(
+                board,
+                board.b_pawn_indexes[i as usize],
+                &PAWN_BLACK_DIRECTIONS,
+                c_move_list,
+            );
         }
 
         for i in 0..board.b_knights {
@@ -135,7 +155,12 @@ pub fn generate_moves(board: &Board, c_move_list: &mut CMoveList) {
     }
 }
 
-fn generate_non_capture_pawn_moves(board: &Board, from_index: u8, directions: &[i16], c_move_list: &mut CMoveList) {
+fn generate_non_capture_pawn_moves(
+    board: &Board,
+    from_index: u8,
+    directions: &[i16],
+    c_move_list: &mut CMoveList,
+) {
     let up_one_index = (from_index as i16 + directions[0]) as u8;
     let up_one_square = board.squares[up_one_index as usize];
     if up_one_square == EMPTY_SQUARE {
@@ -155,7 +180,12 @@ fn generate_non_capture_pawn_moves(board: &Board, from_index: u8, directions: &[
     }
 }
 
-fn generate_capture_pawn_moves(board: &Board, from_index: u8, directions: &[i16], c_move_list: &mut CMoveList) {
+fn generate_capture_pawn_moves(
+    board: &Board,
+    from_index: u8,
+    directions: &[i16],
+    c_move_list: &mut CMoveList,
+) {
     for direction in &directions[2..] {
         let to_index = (from_index as i16 + direction) as u8;
         let to_square = board.squares[to_index as usize];
