@@ -627,6 +627,8 @@ fn set_adp_sliding(
         }
         adp_map[to_index as usize] |= ATTACK;
 
+        let next_to_index = (to_index + direction) as u8;
+        let next_to_square = board.squares[next_to_index as usize];
         if to_index as u8 == stm_king_index {
             *check_count += 1;
             let mut defend_index = from_index as i16;
@@ -636,28 +638,14 @@ fn set_adp_sliding(
             }
             defend_index += direction;
             adp_map[defend_index as usize] |= ATTACK;
-        } else if possible_pin && to_square & OFF_BOARD_SQUARE == board.stm {
-            let pin_index = to_index;
-            to_index += direction;
-            to_square = board.squares[to_index as usize];
-            while to_square == EMPTY_SQUARE {
-                to_index += direction;
-                to_square = board.squares[to_index as usize];
-            }
-            if to_index as u8 == stm_king_index {
-                adp_map[pin_index as usize] |= PIN;
-            }
         } else if possible_pin
             && board.ep_index != 0
             && to_square & PIECE_MASK == PAWN
+            && next_to_square & PIECE_MASK == PAWN
             && (direction == -1 || direction == 1)
         {
-            let next_to_index = (to_index + direction) as u8;
-            let next_to_square = board.squares[next_to_index as usize];
             let ep_pawn_index = get_ep_pawn_index(board);
-            if next_to_square & PIECE_MASK != PAWN
-                || (to_index as u8 != ep_pawn_index && next_to_index != ep_pawn_index)
-            {
+            if to_index as u8 != ep_pawn_index && next_to_index != ep_pawn_index {
                 break;
             }
 
@@ -670,6 +658,17 @@ fn set_adp_sliding(
             }
             if to_index as u8 == stm_king_index {
                 adp_map[board.ep_index as usize] |= EP_PIN;
+            }
+        } else if possible_pin && to_square & OFF_BOARD_SQUARE == board.stm {
+            let pin_index = to_index;
+            to_index += direction;
+            to_square = board.squares[to_index as usize];
+            while to_square == EMPTY_SQUARE {
+                to_index += direction;
+                to_square = board.squares[to_index as usize];
+            }
+            if to_index as u8 == stm_king_index {
+                adp_map[pin_index as usize] |= PIN;
             }
         }
     }
