@@ -656,7 +656,7 @@ fn set_adp_sliding(
             let next_to_square = board.squares[next_to_index as usize];
             let ep_pawn_index = get_ep_pawn_index(board);
             if next_to_square & PIECE_MASK != PAWN
-                || (to_square != ep_pawn_index && next_to_index != ep_pawn_index)
+                || (to_index as u8 != ep_pawn_index && next_to_index != ep_pawn_index)
             {
                 break;
             }
