@@ -1,5 +1,9 @@
 use crate::board_state::{
-    board::Board, c_move_list::CMoveList, castling::{self, BLACK_KING, BLACK_QUEEN, WHITE_KING, WHITE_QUEEN}, piece_type::{BLACK, EMPTY_SQUARE, KNIGHT, OFF_BOARD_SQUARE, PAWN, QUEEN, WHITE}, square_index::{A8, C1, C8, G1, G8, H1}
+    board::Board,
+    c_move_list::CMoveList,
+    castling::{self, BLACK_KING, BLACK_QUEEN, WHITE_KING, WHITE_QUEEN},
+    piece_type::{BLACK, EMPTY_SQUARE, KNIGHT, OFF_BOARD_SQUARE, PAWN, QUEEN, WHITE},
+    square_index::{A8, C1, C8, G1, G8, H1},
 };
 
 const ATTACK: u8 = 1;
@@ -190,7 +194,9 @@ fn generate_capture_pawn_moves(
     for direction in &directions[2..] {
         let to_index = (from_index as i16 + direction) as u8;
         let to_square = board.squares[to_index as usize];
-        if to_square != EMPTY_SQUARE && to_square & OFF_BOARD_SQUARE == (board.stm ^ OFF_BOARD_SQUARE) {
+        if to_square != EMPTY_SQUARE
+            && to_square & OFF_BOARD_SQUARE == (board.stm ^ OFF_BOARD_SQUARE)
+        {
             if PAWN_PROMOTION_SQUARES[to_index as usize] == board.stm {
                 for promotion_piece in KNIGHT..=QUEEN {
                     c_move_list.add_move(from_index, to_index, promotion_piece);
@@ -213,7 +219,9 @@ fn generate_non_sliding_moves(
     for &direction in directions {
         let to_index = (from_index as i16 + direction) as u8;
         let to_square = board.squares[to_index as usize];
-        if to_square == EMPTY_SQUARE || to_square & OFF_BOARD_SQUARE == (board.stm ^ OFF_BOARD_SQUARE) {
+        if to_square == EMPTY_SQUARE
+            || to_square & OFF_BOARD_SQUARE == (board.stm ^ OFF_BOARD_SQUARE)
+        {
             c_move_list.add_move(from_index, to_index, 0);
         }
     }
@@ -391,7 +399,9 @@ fn set_adp_map_ray(
             } else {
                 adp_map[to_index as usize] = ATTACK;
             }
-        } else if dest_is_king_index && to_square & OFF_BOARD_SQUARE != (board.stm ^ OFF_BOARD_SQUARE) {
+        } else if dest_is_king_index
+            && to_square & OFF_BOARD_SQUARE != (board.stm ^ OFF_BOARD_SQUARE)
+        {
             let next_to_index = get_attacked_square_index(board, to_index, attack_direction);
             if next_to_index == dest_index {
                 adp_map[to_index as usize] = PIN;
