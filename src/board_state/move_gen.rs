@@ -2,17 +2,15 @@ use crate::board_state::{
     board::Board,
     c_move_list::CMoveList,
     castling::{BLACK_KING, BLACK_QUEEN, WHITE_KING, WHITE_QUEEN},
-    piece_type::{
-        BLACK, EMPTY_SQUARE, KING, KNIGHT, OFF_BOARD_SQUARE, PAWN, PIECE_MASK, QUEEN, WHITE,
-    },
-    square_index::{A8, C1, C8, G1, G8, H1},
+    piece_type::{EMPTY_SQUARE, KING, KNIGHT, OFF_BOARD_SQUARE, PAWN, PIECE_MASK, QUEEN, WHITE},
+    square_index::{A8, B1, B8, C1, C8, D1, D8, F1, F8, G1, G8, H1},
 };
 
 const ATTACK: u8 = 1;
 const DEFEND: u8 = 2;
 const PIN: u8 = 4;
 const EP_PIN: u8 = 8;
-const RAY_DETECTION_OFFSET: i16 = -1 * (A8 as i16 - H1 as i16);
+const RAY_DETECTION_OFFSET: i16 = -(A8 as i16 - H1 as i16);
 const RAY_DETECTION: [i16; 240] = [
     17, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 15, 0, 0, 17, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 15,
     0, 0, 0, 0, 17, 0, 0, 0, 0, 16, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 16, 0, 0, 0, 15,
@@ -202,6 +200,7 @@ pub fn generate_moves(board: &Board, c_move_list: &mut CMoveList) {
             c_move_list,
         );
     }
+    generate_castle_moves(board, &adp_map, check_count, c_move_list);
 }
 
 fn generate_non_capture_pawn_moves(
@@ -372,6 +371,57 @@ fn generate_sliding_moves(
     }
 }
 
+fn generate_castle_moves(
+    board: &Board,
+    adp_map: &[u8; 192],
+    check_count: u8,
+    c_move_list: &mut CMoveList,
+) {
+    if check_count > 0 {
+        return;
+    }
+
+    if board.stm == WHITE {
+        if board.castling_rights & WHITE_KING != 0
+            && board.squares[F1 as usize] == EMPTY_SQUARE
+            && board.squares[G1 as usize] == EMPTY_SQUARE
+            && adp_map[F1 as usize] == 0
+            && adp_map[G1 as usize] == 0
+        {
+            c_move_list.add_move(board.w_king_index, G1, 0);
+        }
+
+        if board.castling_rights & WHITE_QUEEN != 0
+            && board.squares[B1 as usize] == EMPTY_SQUARE
+            && board.squares[C1 as usize] == EMPTY_SQUARE
+            && board.squares[D1 as usize] == EMPTY_SQUARE
+            && adp_map[C1 as usize] == 0
+            && adp_map[D1 as usize] == 0
+        {
+            c_move_list.add_move(board.w_king_index, C1, 0);
+        }
+    } else {
+        if board.castling_rights & BLACK_KING != 0
+            && board.squares[F8 as usize] == EMPTY_SQUARE
+            && board.squares[G8 as usize] == EMPTY_SQUARE
+            && adp_map[F8 as usize] == 0
+            && adp_map[G8 as usize] == 0
+        {
+            c_move_list.add_move(board.b_king_index, G8, 0);
+        }
+
+        if board.castling_rights & BLACK_QUEEN != 0
+            && board.squares[B8 as usize] == EMPTY_SQUARE
+            && board.squares[C8 as usize] == EMPTY_SQUARE
+            && board.squares[D8 as usize] == EMPTY_SQUARE
+            && adp_map[C8 as usize] == 0
+            && adp_map[D8 as usize] == 0
+        {
+            c_move_list.add_move(board.b_king_index, C8, 0);
+        }
+    }
+}
+
 fn add_legal_move(
     board: &Board,
     adp_map: &[u8; 192],
@@ -385,22 +435,15 @@ fn add_legal_move(
     if from_square & PIECE_MASK == KING {
         if adp_map[to_index as usize] != 0 {
             return;
-        } else if (is_non_sliding_attack(board, to_index)) {
-            return;
         }
-    } else {
-        if check_count > 1 {
-            return;
-        } else if check_count == 1 && adp_map[to_index as usize] & DEFEND != DEFEND {
-            return;
-        } else if adp_map[from_index as usize] & PIN == PIN {
-            return;
-        } else if from_square & PIECE_MASK == PAWN
+    } else if check_count > 1
+        || (check_count == 1 && adp_map[to_index as usize] & DEFEND != DEFEND)
+        || adp_map[from_index as usize] & PIN == PIN
+        || (from_square & PIECE_MASK == PAWN
             && to_index == board.ep_index
-            && adp_map[to_index as usize] & EP_PIN == EP_PIN
-        {
-            return;
-        }
+            && adp_map[to_index as usize] & EP_PIN == EP_PIN)
+    {
+        return;
     }
     c_move_list.add_move(from_index, to_index, promotion_piece);
 }
@@ -408,287 +451,228 @@ fn add_legal_move(
 fn generate_adp_map(board: &Board) -> ([u8; 192], u8) {
     let mut adp_map = [0; 192];
     let mut check_count = 0;
-    let mut dest_indexes: [u8; 3] = [0; 3];
 
     if board.stm == WHITE {
-        dest_indexes[0] = board.w_king_index;
-        if board.castling_rights & WHITE_KING != 0 {
-            dest_indexes[1] = G1;
+        for i in 0..board.b_pawns {
+            let from_index = board.b_pawn_indexes[i as usize];
+            set_adp_non_sliding(
+                from_index,
+                &PAWN_BLACK_DIRECTIONS[2..],
+                board.w_king_index,
+                &mut adp_map,
+                &mut check_count,
+            );
         }
-        if board.castling_rights & WHITE_QUEEN != 0 {
-            dest_indexes[2] = C1;
+
+        for i in 0..board.b_knights {
+            let from_index = board.b_knight_indexes[i as usize];
+            set_adp_non_sliding(
+                from_index,
+                &KNIGHT_DIRECTIONS,
+                board.w_king_index,
+                &mut adp_map,
+                &mut check_count,
+            );
         }
 
         for i in 0..board.b_bishops {
             let from_index = board.b_bishop_indexes[i as usize];
-            for dest_index in dest_indexes {
-                if dest_index != 0 {
-                    set_adp_map_ray(
-                        board,
-                        from_index,
-                        dest_index,
-                        &BISHOP_DIRECTIONS,
-                        &mut adp_map,
-                        &mut check_count,
-                    );
-                }
-            }
+            set_adp_sliding(
+                board,
+                from_index,
+                &BISHOP_DIRECTIONS,
+                board.w_king_index,
+                &mut adp_map,
+                &mut check_count,
+            );
         }
 
         for i in 0..board.b_rooks {
             let from_index = board.b_rook_indexes[i as usize];
-            for dest_index in dest_indexes {
-                if dest_index != 0 {
-                    set_adp_map_ray(
-                        board,
-                        from_index,
-                        dest_index,
-                        &ROOK_DIRECTIONS,
-                        &mut adp_map,
-                        &mut check_count,
-                    );
-                }
-            }
+            set_adp_sliding(
+                board,
+                from_index,
+                &ROOK_DIRECTIONS,
+                board.w_king_index,
+                &mut adp_map,
+                &mut check_count,
+            );
         }
 
         for i in 0..board.b_queens {
             let from_index = board.b_queen_indexes[i as usize];
-            for dest_index in dest_indexes {
-                if dest_index != 0 {
-                    set_adp_map_ray(
-                        board,
-                        from_index,
-                        dest_index,
-                        &QUEEN_DIRECTIONS,
-                        &mut adp_map,
-                        &mut check_count,
-                    );
-                }
-            }
+            set_adp_sliding(
+                board,
+                from_index,
+                &QUEEN_DIRECTIONS,
+                board.w_king_index,
+                &mut adp_map,
+                &mut check_count,
+            );
         }
 
-        for &direction in &PAWN_BLACK_DIRECTIONS[2..] {
-            for dest_index in dest_indexes {
-                let from_index = (dest_index as i16 + direction) as u8;
-                let from_square = board.squares[from_index as usize];
-                if from_square == (BLACK | PAWN) {
-                    adp_map[dest_index as usize] |= ATTACK;
-                    if dest_index == board.w_king_index {
-                        check_count += 1;
-                        adp_map[from_index as usize] |= DEFEND;
-                    }
-                }
-            }
-        }
-
-        for &direction in &KNIGHT_DIRECTIONS {
-            for dest_index in dest_indexes {
-                let from_index = (dest_index as i16 + direction) as u8;
-                let from_square = board.squares[from_index as usize];
-                if from_square == (BLACK | KNIGHT) {
-                    adp_map[dest_index as usize] |= ATTACK;
-                    if dest_index == board.w_king_index {
-                        check_count += 1;
-                        adp_map[from_index as usize] |= DEFEND;
-                    }
-                }
-            }
-        }
-
-        for &direction in &KING_DIRECTIONS {
-            for dest_index in dest_indexes {
-                let from_index = (dest_index as i16 + direction) as u8;
-                let from_square = board.squares[from_index as usize];
-                if from_square == (BLACK | KING) {
-                    adp_map[dest_index as usize] |= ATTACK;
-                    if dest_index == board.w_king_index {
-                        check_count += 1;
-                        adp_map[from_index as usize] |= DEFEND;
-                    }
-                }
-            }
-        }
+        set_adp_non_sliding(
+            board.b_king_index,
+            &KING_DIRECTIONS,
+            board.w_king_index,
+            &mut adp_map,
+            &mut check_count,
+        );
     } else {
-        dest_indexes[0] = board.b_king_index;
-        if board.castling_rights & BLACK_KING != 0 {
-            dest_indexes[1] = G8;
+        for i in 0..board.w_pawns {
+            let from_index = board.w_pawn_indexes[i as usize];
+            set_adp_non_sliding(
+                from_index,
+                &PAWN_WHITE_DIRECTIONS[2..],
+                board.b_king_index,
+                &mut adp_map,
+                &mut check_count,
+            );
         }
-        if board.castling_rights & BLACK_QUEEN != 0 {
-            dest_indexes[2] = C8;
+
+        for i in 0..board.w_knights {
+            let from_index = board.w_knight_indexes[i as usize];
+            set_adp_non_sliding(
+                from_index,
+                &KNIGHT_DIRECTIONS,
+                board.b_king_index,
+                &mut adp_map,
+                &mut check_count,
+            );
         }
 
         for i in 0..board.w_bishops {
             let from_index = board.w_bishop_indexes[i as usize];
-            for dest_index in dest_indexes {
-                if dest_index != 0 {
-                    set_adp_map_ray(
-                        board,
-                        from_index,
-                        dest_index,
-                        &BISHOP_DIRECTIONS,
-                        &mut adp_map,
-                        &mut check_count,
-                    );
-                }
-            }
+            set_adp_sliding(
+                board,
+                from_index,
+                &BISHOP_DIRECTIONS,
+                board.b_king_index,
+                &mut adp_map,
+                &mut check_count,
+            );
         }
 
         for i in 0..board.w_rooks {
             let from_index = board.w_rook_indexes[i as usize];
-            for dest_index in dest_indexes {
-                if dest_index != 0 {
-                    set_adp_map_ray(
-                        board,
-                        from_index,
-                        dest_index,
-                        &ROOK_DIRECTIONS,
-                        &mut adp_map,
-                        &mut check_count,
-                    );
-                }
-            }
+            set_adp_sliding(
+                board,
+                from_index,
+                &ROOK_DIRECTIONS,
+                board.b_king_index,
+                &mut adp_map,
+                &mut check_count,
+            );
         }
 
         for i in 0..board.w_queens {
             let from_index = board.w_queen_indexes[i as usize];
-            for dest_index in dest_indexes {
-                if dest_index != 0 {
-                    set_adp_map_ray(
-                        board,
-                        from_index,
-                        dest_index,
-                        &QUEEN_DIRECTIONS,
-                        &mut adp_map,
-                        &mut check_count,
-                    );
-                }
-            }
+            set_adp_sliding(
+                board,
+                from_index,
+                &QUEEN_DIRECTIONS,
+                board.b_king_index,
+                &mut adp_map,
+                &mut check_count,
+            );
         }
 
-        for &direction in &PAWN_WHITE_DIRECTIONS[2..] {
-            for dest_index in dest_indexes {
-                let from_index = (dest_index as i16 + direction) as u8;
-                let from_square = board.squares[from_index as usize];
-                if from_square == (WHITE | PAWN) {
-                    adp_map[dest_index as usize] |= ATTACK;
-                    if dest_index == board.b_king_index {
-                        check_count += 1;
-                        adp_map[from_index as usize] |= DEFEND;
-                    }
-                }
-            }
-        }
-
-        for &direction in &KNIGHT_DIRECTIONS {
-            for dest_index in dest_indexes {
-                let from_index = (dest_index as i16 + direction) as u8;
-                let from_square = board.squares[from_index as usize];
-                if from_square == (WHITE | KNIGHT) {
-                    adp_map[dest_index as usize] |= ATTACK;
-                    if dest_index == board.b_king_index {
-                        check_count += 1;
-                        adp_map[from_index as usize] |= DEFEND;
-                    }
-                }
-            }
-        }
-
-        for &direction in &KING_DIRECTIONS {
-            for dest_index in dest_indexes {
-                let from_index = (dest_index as i16 + direction) as u8;
-                let from_square = board.squares[from_index as usize];
-                if from_square == (WHITE | KING) {
-                    adp_map[dest_index as usize] |= ATTACK;
-                    if dest_index == board.b_king_index {
-                        check_count += 1;
-                        adp_map[from_index as usize] |= DEFEND;
-                    }
-                }
-            }
-        }
+        set_adp_non_sliding(
+            board.w_king_index,
+            &KING_DIRECTIONS,
+            board.b_king_index,
+            &mut adp_map,
+            &mut check_count,
+        );
     }
 
     (adp_map, check_count)
 }
 
-fn set_adp_map_ray(
-    board: &Board,
+fn set_adp_non_sliding(
     from_index: u8,
-    dest_index: u8,
     directions: &[i16],
+    stm_king_index: u8,
     adp_map: &mut [u8; 192],
     check_count: &mut u8,
 ) {
-    let attack_direction = get_attack_direction(from_index, dest_index, directions);
-    if attack_direction != 0 {
-        let dest_is_king_index = match board.stm {
-            WHITE => board.w_king_index == dest_index,
-            _ => board.b_king_index == dest_index,
-        };
-        let to_index = get_attacked_square_index(board, from_index, attack_direction);
-        let to_square = board.squares[to_index as usize];
-        if to_index == dest_index {
-            if dest_is_king_index {
-                *check_count += 1;
-                let mut adp_index = from_index;
-                while adp_index != to_index {
-                    adp_map[adp_index as usize] |= ATTACK | DEFEND;
-                    adp_index = (adp_index as i16 + attack_direction) as u8;
-                }
-                adp_index = (adp_index as i16 + attack_direction) as u8; // skip the king square
-                adp_map[adp_index as usize] |= ATTACK; // extra square past the king
-            } else {
-                adp_map[to_index as usize] |= ATTACK;
-            }
-        } else if dest_is_king_index && to_square & OFF_BOARD_SQUARE == board.stm {
-            let next_to_index = get_attacked_square_index(board, to_index, attack_direction);
-            if next_to_index == dest_index {
-                adp_map[to_index as usize] |= PIN;
-            }
-        } else if dest_is_king_index
-            && to_square & PIECE_MASK == PAWN
-            && (attack_direction == -1 || attack_direction == 1)
-        {
-            let ep_pawn_index = get_ep_pawn_index(board);
-            let next_to_index = (to_index as i16 + attack_direction) as u8;
-            let next_to_square = board.squares[next_to_index as usize];
-            if next_to_square & PIECE_MASK == PAWN
-                && (to_square | next_to_square) & OFF_BOARD_SQUARE == OFF_BOARD_SQUARE
-                && (to_square == ep_pawn_index || next_to_index == ep_pawn_index)
-            {
-                let next_next_to_index =
-                    get_attacked_square_index(board, next_to_index, attack_direction);
-                if next_next_to_index == dest_index {
-                    adp_map[board.ep_index as usize] |= EP_PIN;
-                }
-            }
-        }
-    }
-}
-
-fn get_attack_direction(from_index: u8, to_index: u8, directions: &[i16]) -> i16 {
-    let ray_dection_index = from_index as i16 - to_index as i16 + RAY_DETECTION_OFFSET;
-    let ray_detection = RAY_DETECTION[ray_dection_index as usize];
-    if ray_detection == 0 {
-        return 0;
-    }
-
     for &direction in directions {
-        if ray_detection == direction {
-            return direction;
+        let to_index = (from_index as i16 + direction) as u8;
+        adp_map[to_index as usize] |= ATTACK;
+        if to_index == stm_king_index {
+            *check_count += 1;
+            adp_map[from_index as usize] |= DEFEND;
         }
     }
-    0
 }
 
-fn get_attacked_square_index(board: &Board, from_index: u8, direction: i16) -> u8 {
-    let mut to_index = from_index as i16 + direction;
-    let mut to_square = board.squares[to_index as usize];
-    while to_square == EMPTY_SQUARE {
-        to_index += direction;
-        to_square = board.squares[to_index as usize];
+fn set_adp_sliding(
+    board: &Board,
+    from_index: u8,
+    directions: &[i16],
+    stm_king_index: u8,
+    adp_map: &mut [u8; 192],
+    check_count: &mut u8,
+) {
+    for &direction in directions {
+        let ray_detection_index = from_index as i16 - stm_king_index as i16 + RAY_DETECTION_OFFSET;
+        let possible_pin = RAY_DETECTION[ray_detection_index as usize] == direction;
+
+        let mut to_index = from_index as i16 + direction;
+        let mut to_square = board.squares[to_index as usize];
+        while to_square == EMPTY_SQUARE {
+            adp_map[to_index as usize] |= ATTACK;
+            to_index += direction;
+            to_square = board.squares[to_index as usize];
+        }
+        adp_map[to_index as usize] |= ATTACK;
+
+        if to_index as u8 == stm_king_index {
+            *check_count += 1;
+            let mut defend_index = from_index as i16;
+            while defend_index != to_index {
+                adp_map[defend_index as usize] |= DEFEND;
+                defend_index += direction;
+            }
+            defend_index += direction;
+            adp_map[defend_index as usize] |= ATTACK;
+        } else if possible_pin && to_square & OFF_BOARD_SQUARE == board.stm {
+            let pin_index = to_index;
+            to_index += direction;
+            to_square = board.squares[to_index as usize];
+            while to_square == EMPTY_SQUARE {
+                to_index += direction;
+                to_square = board.squares[to_index as usize];
+            }
+            if to_index as u8 == stm_king_index {
+                adp_map[pin_index as usize] |= PIN;
+            }
+        } else if possible_pin
+            && board.ep_index != 0
+            && to_square & PIECE_MASK == PAWN
+            && (direction == -1 || direction == 1)
+        {
+            let next_to_index = (to_index + direction) as u8;
+            let next_to_square = board.squares[next_to_index as usize];
+            let ep_pawn_index = get_ep_pawn_index(board);
+            if next_to_square & PIECE_MASK != PAWN
+                || (to_square != ep_pawn_index && next_to_index != ep_pawn_index)
+            {
+                break;
+            }
+
+            to_index += direction;
+            to_index += direction;
+            to_square = board.squares[to_index as usize];
+            while to_square == EMPTY_SQUARE {
+                to_index += direction;
+                to_square = board.squares[to_index as usize];
+            }
+            if to_index as u8 == stm_king_index {
+                adp_map[board.ep_index as usize] |= EP_PIN;
+            }
+        }
     }
-    to_index as u8
 }
 
 fn get_ep_pawn_index(board: &Board) -> u8 {
@@ -696,61 +680,8 @@ fn get_ep_pawn_index(board: &Board) -> u8 {
         return 0;
     }
 
-    return match board.stm {
+    match board.stm {
         WHITE => board.ep_index + 16,
         _ => board.ep_index - 16,
-    };
-}
-
-fn is_non_sliding_attack(board: &Board, index: u8) -> bool {
-    if board.stm == WHITE {
-        for &direction in &PAWN_BLACK_DIRECTIONS[2..] {
-            let attack_index = (index as i16 + direction) as u8;
-            let attack_square = board.squares[attack_index as usize];
-            if attack_square == (BLACK | PAWN) {
-                return true;
-            }
-        }
-
-        for &direction in &KNIGHT_DIRECTIONS[2..] {
-            let attack_index = (index as i16 + direction) as u8;
-            let attack_square = board.squares[attack_index as usize];
-            if attack_square == (BLACK | KNIGHT) {
-                return true;
-            }
-        }
-
-        for &direction in &KING_DIRECTIONS[2..] {
-            let attack_index = (index as i16 + direction) as u8;
-            let attack_square = board.squares[attack_index as usize];
-            if attack_square == (BLACK | KING) {
-                return true;
-            }
-        }
-    } else {
-        for &direction in &PAWN_WHITE_DIRECTIONS[2..] {
-            let attack_index = (index as i16 + direction) as u8;
-            let attack_square = board.squares[attack_index as usize];
-            if attack_square == (WHITE | PAWN) {
-                return true;
-            }
-        }
-
-        for &direction in &KNIGHT_DIRECTIONS[2..] {
-            let attack_index = (index as i16 + direction) as u8;
-            let attack_square = board.squares[attack_index as usize];
-            if attack_square == (WHITE | KNIGHT) {
-                return true;
-            }
-        }
-
-        for &direction in &KING_DIRECTIONS[2..] {
-            let attack_index = (index as i16 + direction) as u8;
-            let attack_square = board.squares[attack_index as usize];
-            if attack_square == (WHITE | KING) {
-                return true;
-            }
-        }
     }
-    false
 }

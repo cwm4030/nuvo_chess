@@ -1,6 +1,8 @@
 use std::io::Write;
 
 use crate::board_state::board::Board;
+use crate::board_state::c_move_list::CMoveList;
+use crate::board_state::move_gen::generate_moves;
 
 pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
     let parts: Vec<&str> = command.split_whitespace().collect();
@@ -28,6 +30,10 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
                 board.print_board(true);
             } else if parts.len() > 1 && parts[1] == "print_ascii" {
                 board.print_ascii_board();
+            } else if parts.len() > 1 && parts[1] == "print_moves" {
+                let mut c_move_list = CMoveList::new();
+                generate_moves(board, &mut c_move_list);
+                c_move_list.print_moves();
             }
             true
         }
