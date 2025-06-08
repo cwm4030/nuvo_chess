@@ -17,9 +17,14 @@ pub fn print_perft(board: &mut Board, depth: u64) {
         board.unmake_move(&c_move);
     }
     let elapsed = now.elapsed();
-    let mps = (total_nodes as f64 / elapsed.as_secs_f64()).round();
+    let mps = total_nodes as f64 / elapsed.as_secs_f64();
     println!();
-    println!("Perft result at depth {}: {}", depth, total_nodes);
+    println!(
+        "Perft result at depth {}: {} moves in {} seconds",
+        depth,
+        total_nodes,
+        elapsed.as_secs_f64()
+    );
     println!("Moves per second: {}", mps);
     println!();
 }

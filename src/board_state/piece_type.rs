@@ -9,6 +9,7 @@ pub const WHITE: u8 = 8;
 pub const BLACK: u8 = 16;
 pub const OFF_BOARD_SQUARE: u8 = WHITE | BLACK;
 pub const PIECE_MASK: u8 = 7;
+pub const NO_PIECE: u8 = 32;
 
 pub fn is_white(piece_type: u8) -> bool {
     (piece_type & WHITE) != 0

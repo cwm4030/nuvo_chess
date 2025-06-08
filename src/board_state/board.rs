@@ -1,8 +1,8 @@
 use crate::board_state::{
     castling::{BLACK_KING, BLACK_QUEEN, WHITE_KING, WHITE_QUEEN, get_castling_rights_string},
     piece_type::{
-        BISHOP, BLACK, EMPTY_SQUARE, KING, KNIGHT, OFF_BOARD_SQUARE, PAWN, QUEEN, ROOK, WHITE,
-        get_piece_string, is_black, is_white,
+        BISHOP, BLACK, EMPTY_SQUARE, KING, KNIGHT, NO_PIECE, OFF_BOARD_SQUARE, PAWN, QUEEN, ROOK,
+        WHITE, get_piece_string, is_black, is_white,
     },
     square_index::{ON_AND_OFF_BOARD_SQUARES, ON_BOARD_SQUARES, SQUARE_NAMES},
 };
@@ -185,7 +185,8 @@ impl Board {
         self.fullmove = fen_fullmove.parse().unwrap_or(1) as u16;
     }
 
-    pub fn add_to_piece_list(&mut self, piece_type: u8, square_index: u8) {
+    pub fn add_piece(&mut self, piece_type: u8, square_index: u8) {
+        self.squares[square_index as usize] = piece_type;
         match piece_type {
             x if x == (BLACK | PAWN) => {
                 self.b_pawn_indexes[self.b_pawns as usize] = square_index;
@@ -247,121 +248,105 @@ impl Board {
         }
     }
 
-    pub fn update_piece_list(&mut self, piece_type: u8, piece_index: u8, square_index: u8) {
-        match piece_type {
-            x if x == (BLACK | PAWN) => {
-                self.b_pawn_indexes[piece_index as usize] = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (BLACK | KNIGHT) => {
-                self.b_knight_indexes[piece_index as usize] = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (BLACK | BISHOP) => {
-                self.b_bishop_indexes[piece_index as usize] = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (BLACK | ROOK) => {
-                self.b_rook_indexes[piece_index as usize] = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (BLACK | QUEEN) => {
-                self.b_queen_indexes[piece_index as usize] = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (BLACK | KING) => {
-                self.b_king_index = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (WHITE | PAWN) => {
-                self.w_pawn_indexes[piece_index as usize] = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (WHITE | KNIGHT) => {
-                self.w_knight_indexes[piece_index as usize] = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (WHITE | BISHOP) => {
-                self.w_bishop_indexes[piece_index as usize] = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (WHITE | ROOK) => {
-                self.w_rook_indexes[piece_index as usize] = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (WHITE | QUEEN) => {
-                self.w_queen_indexes[piece_index as usize] = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
-            x if x == (WHITE | KING) => {
-                self.w_king_index = square_index;
-                self.piece_indexes[square_index as usize] = piece_index;
-            }
+    pub fn move_piece(&mut self, from_index: u8, to_index: u8) {
+        let from_square = self.squares[from_index as usize];
+        let to_square = self.squares[to_index as usize];
+        if to_square != EMPTY_SQUARE {
+            self.remove_piece(to_index);
+        }
+        self.squares[to_index as usize] = from_square;
+        self.squares[from_index as usize] = EMPTY_SQUARE;
+        self.piece_indexes[to_index as usize] = self.piece_indexes[from_index as usize];
+        self.piece_indexes[from_index as usize] = NO_PIECE;
+        let piece_index = self.piece_indexes[to_index as usize];
+        match from_square {
+            x if x == (BLACK | PAWN) => self.b_pawn_indexes[piece_index as usize] = to_index,
+            x if x == (BLACK | KNIGHT) => self.b_knight_indexes[piece_index as usize] = to_index,
+            x if x == (BLACK | BISHOP) => self.b_bishop_indexes[piece_index as usize] = to_index,
+            x if x == (BLACK | ROOK) => self.b_rook_indexes[piece_index as usize] = to_index,
+            x if x == (BLACK | QUEEN) => self.b_queen_indexes[piece_index as usize] = to_index,
+            x if x == (BLACK | KING) => self.b_king_index = to_index,
+            x if x == (WHITE | PAWN) => self.w_pawn_indexes[piece_index as usize] = to_index,
+            x if x == (WHITE | KNIGHT) => self.w_knight_indexes[piece_index as usize] = to_index,
+            x if x == (WHITE | BISHOP) => self.w_bishop_indexes[piece_index as usize] = to_index,
+            x if x == (WHITE | ROOK) => self.w_rook_indexes[piece_index as usize] = to_index,
+            x if x == (WHITE | QUEEN) => self.w_queen_indexes[piece_index as usize] = to_index,
+            x if x == (WHITE | KING) => self.w_king_index = to_index,
             _ => {}
         }
     }
 
-    pub fn remove_from_piece_list(&mut self, piece_type: u8, piece_index: u8) {
+    pub fn remove_piece(&mut self, square_index: u8) {
+        let piece_type = self.squares[square_index as usize];
+        let piece_index = self.piece_indexes[square_index as usize];
+        self.squares[square_index as usize] = EMPTY_SQUARE;
+        self.piece_indexes[square_index as usize] = NO_PIECE;
         match piece_type {
             x if x == (BLACK | PAWN) => {
                 self.b_pawn_indexes[piece_index as usize] =
                     self.b_pawn_indexes[self.b_pawns as usize - 1];
-                self.piece_indexes[piece_index as usize] = 0;
+                self.b_pawn_indexes[self.b_pawns as usize - 1] = 0;
                 self.b_pawns -= 1;
             }
             x if x == (BLACK | KNIGHT) => {
                 self.b_knight_indexes[piece_index as usize] =
                     self.b_knight_indexes[self.b_knights as usize - 1];
-                self.piece_indexes[piece_index as usize] = 0;
+                self.b_knight_indexes[self.b_knights as usize - 1] = 0;
                 self.b_knights -= 1;
             }
             x if x == (BLACK | BISHOP) => {
                 self.b_bishop_indexes[piece_index as usize] =
                     self.b_bishop_indexes[self.b_bishops as usize - 1];
-                self.piece_indexes[piece_index as usize] = 0;
+                self.b_bishop_indexes[self.b_bishops as usize - 1] = 0;
                 self.b_bishops -= 1;
             }
             x if x == (BLACK | ROOK) => {
                 self.b_rook_indexes[piece_index as usize] =
                     self.b_rook_indexes[self.b_rooks as usize - 1];
-                self.piece_indexes[piece_index as usize] = 0;
+                self.b_rook_indexes[self.b_rooks as usize - 1] = 0;
                 self.b_rooks -= 1;
             }
             x if x == (BLACK | QUEEN) => {
                 self.b_queen_indexes[piece_index as usize] =
                     self.b_queen_indexes[self.b_queens as usize - 1];
-                self.piece_indexes[piece_index as usize] = 0;
+                self.b_queen_indexes[self.b_queens as usize - 1] = 0;
                 self.b_queens -= 1;
+            }
+            x if x == (BLACK | KING) => {
+                self.b_king_index = 0;
             }
             x if x == (WHITE | PAWN) => {
                 self.w_pawn_indexes[piece_index as usize] =
                     self.w_pawn_indexes[self.w_pawns as usize - 1];
-                self.piece_indexes[piece_index as usize] = 0;
+                self.w_pawn_indexes[self.w_pawns as usize - 1] = 0;
                 self.w_pawns -= 1;
             }
             x if x == (WHITE | KNIGHT) => {
                 self.w_knight_indexes[piece_index as usize] =
                     self.w_knight_indexes[self.w_knights as usize - 1];
-                self.piece_indexes[piece_index as usize] = 0;
+                self.w_knight_indexes[self.w_knights as usize - 1] = 0;
                 self.w_knights -= 1;
             }
             x if x == (WHITE | BISHOP) => {
                 self.w_bishop_indexes[piece_index as usize] =
                     self.w_bishop_indexes[self.w_bishops as usize - 1];
-                self.piece_indexes[piece_index as usize] = 0;
+                self.w_bishop_indexes[self.w_bishops as usize - 1] = 0;
                 self.w_bishops -= 1;
             }
             x if x == (WHITE | ROOK) => {
                 self.w_rook_indexes[piece_index as usize] =
                     self.w_rook_indexes[self.w_rooks as usize - 1];
-                self.piece_indexes[piece_index as usize] = 0;
+                self.w_rook_indexes[self.w_rooks as usize - 1] = 0;
                 self.w_rooks -= 1;
             }
             x if x == (WHITE | QUEEN) => {
                 self.w_queen_indexes[piece_index as usize] =
                     self.w_queen_indexes[self.w_queens as usize - 1];
-                self.piece_indexes[piece_index as usize] = 0;
+                self.w_queen_indexes[self.w_queens as usize - 1] = 0;
                 self.w_queens -= 1;
+            }
+            x if x == (WHITE | KING) => {
+                self.w_king_index = 0;
             }
             _ => {}
         }
@@ -377,7 +362,7 @@ impl Board {
         }
 
         for i in 0..192 {
-            self.piece_indexes[i] = 0;
+            self.piece_indexes[i] = NO_PIECE;
         }
 
         self.w_king_index = 0;
@@ -434,58 +419,20 @@ impl Board {
             } else if c == '/' {
                 continue;
             } else {
-                let square_index = ON_BOARD_SQUARES[on_board_square_index] as usize;
+                let square_index = ON_BOARD_SQUARES[on_board_square_index];
                 match c {
-                    'p' => {
-                        self.squares[square_index] = BLACK | PAWN;
-                        self.add_to_piece_list(BLACK | PAWN, square_index as u8);
-                    }
-                    'n' => {
-                        self.squares[square_index] = BLACK | KNIGHT;
-                        self.add_to_piece_list(BLACK | KNIGHT, square_index as u8);
-                    }
-                    'b' => {
-                        self.squares[square_index] = BLACK | BISHOP;
-                        self.add_to_piece_list(BLACK | BISHOP, square_index as u8);
-                    }
-                    'r' => {
-                        self.squares[square_index] = BLACK | ROOK;
-                        self.add_to_piece_list(BLACK | ROOK, square_index as u8);
-                    }
-                    'q' => {
-                        self.squares[square_index] = BLACK | QUEEN;
-                        self.add_to_piece_list(BLACK | QUEEN, square_index as u8);
-                    }
-                    'k' => {
-                        self.squares[square_index] = BLACK | KING;
-                        self.add_to_piece_list(BLACK | KING, square_index as u8);
-                        self.b_king_index = square_index as u8;
-                    }
-                    'P' => {
-                        self.squares[square_index] = WHITE | PAWN;
-                        self.add_to_piece_list(WHITE | PAWN, square_index as u8);
-                    }
-                    'N' => {
-                        self.squares[square_index] = WHITE | KNIGHT;
-                        self.add_to_piece_list(WHITE | KNIGHT, square_index as u8);
-                    }
-                    'B' => {
-                        self.squares[square_index] = WHITE | BISHOP;
-                        self.add_to_piece_list(WHITE | BISHOP, square_index as u8);
-                    }
-                    'R' => {
-                        self.squares[square_index] = WHITE | ROOK;
-                        self.add_to_piece_list(WHITE | ROOK, square_index as u8);
-                    }
-                    'Q' => {
-                        self.squares[square_index] = WHITE | QUEEN;
-                        self.add_to_piece_list(WHITE | QUEEN, square_index as u8);
-                    }
-                    'K' => {
-                        self.squares[square_index] = WHITE | KING;
-                        self.add_to_piece_list(WHITE | KING, square_index as u8);
-                        self.w_king_index = square_index as u8;
-                    }
+                    'p' => self.add_piece(BLACK | PAWN, square_index),
+                    'n' => self.add_piece(BLACK | KNIGHT, square_index),
+                    'b' => self.add_piece(BLACK | BISHOP, square_index),
+                    'r' => self.add_piece(BLACK | ROOK, square_index),
+                    'q' => self.add_piece(BLACK | QUEEN, square_index),
+                    'k' => self.add_piece(BLACK | KING, square_index),
+                    'P' => self.add_piece(WHITE | PAWN, square_index),
+                    'N' => self.add_piece(WHITE | KNIGHT, square_index),
+                    'B' => self.add_piece(WHITE | BISHOP, square_index),
+                    'R' => self.add_piece(WHITE | ROOK, square_index),
+                    'Q' => self.add_piece(WHITE | QUEEN, square_index),
+                    'K' => self.add_piece(WHITE | KING, square_index),
                     _ => continue,
                 };
                 on_board_square_index += 1;
