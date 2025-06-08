@@ -197,10 +197,10 @@ impl Board {
         let from_square = self.squares[c_move.from_index as usize];
         let to_square = self.squares[c_move.to_index as usize];
         if to_square != EMPTY_SQUARE {
-            let to_piece_index = self.piece_indexes[c_move.to_index as usize];
+            let to_piece_index: u8 = self.piece_indexes[c_move.to_index as usize];
             self.remove_from_piece_list(to_square, to_piece_index);
             self.captured_piece_history[self.history_index as usize] = to_square;
-        } else if to_square & PIECE_MASK == PAWN && c_move.to_index == self.ep_index {
+        } else if from_square & PIECE_MASK == PAWN && c_move.to_index == self.ep_index {
             let ep_pawn_index = match self.stm {
                 WHITE => c_move.to_index + 16,
                 _ => c_move.to_index - 16,
@@ -208,9 +208,8 @@ impl Board {
             let ep_pawn_square = self.squares[ep_pawn_index as usize];
             self.remove_from_piece_list(ep_pawn_square, self.piece_indexes[ep_pawn_index as usize]);
             self.squares[ep_pawn_index as usize] = EMPTY_SQUARE;
-            self.piece_indexes[ep_pawn_index as usize] = 0;
             self.captured_piece_history[self.history_index as usize] = ep_pawn_square;
-        } else if to_square & PIECE_MASK == KING {
+        } else if from_square & PIECE_MASK == KING {
             if c_move.from_index == E1 && c_move.to_index == G1 {
                 self.castling_rights ^= WHITE_KING;
                 self.squares[F1 as usize] = self.squares[H1 as usize];
@@ -274,7 +273,7 @@ impl Board {
         }
 
         let move_diff = (c_move.from_index as i16 - c_move.to_index as i16).abs();
-        if to_square & PIECE_MASK == PAWN && move_diff == 16 {
+        if to_square & PIECE_MASK == PAWN && move_diff == 32 {
             self.ep_index = match self.stm {
                 WHITE => c_move.to_index + 16,
                 _ => c_move.to_index - 16,
@@ -291,6 +290,96 @@ impl Board {
             _ => self.fullmove + 1,
         };
         self.stm = self.stm ^ OFF_BOARD_SQUARE;
+        self.history_index += 1;
+    }
+
+    pub fn unmake_move(&mut self, c_move: &CMove) {
+        self.history_index -= 1;
+        self.ep_index = self.ep_index_history[self.history_index as usize];
+        self.castling_rights = self.castling_rights_history[self.history_index as usize];
+        self.halfmove = self.halfmove_history[self.history_index as usize];
+
+        self.stm = self.stm ^ OFF_BOARD_SQUARE;
+        self.fullmove = match self.stm {
+            WHITE => self.fullmove,
+            _ => self.fullmove - 1,
+        };
+
+        self.squares[c_move.from_index as usize] = self.squares[c_move.to_index as usize];
+        self.piece_indexes[c_move.from_index as usize] =
+            self.piece_indexes[c_move.to_index as usize];
+        self.squares[c_move.to_index as usize] = EMPTY_SQUARE;
+        self.piece_indexes[c_move.to_index as usize] = 0;
+        self.update_piece_list(
+            self.squares[c_move.from_index as usize],
+            self.piece_indexes[c_move.from_index as usize],
+            c_move.from_index,
+        );
+
+        let from_square = self.squares[c_move.from_index as usize];
+        let captured_piece = self.captured_piece_history[self.history_index as usize];
+        if captured_piece != EMPTY_SQUARE {
+            self.squares[c_move.to_index as usize] = captured_piece;
+            self.add_to_piece_list(captured_piece, c_move.to_index);
+        } else if from_square & PIECE_MASK == PAWN && c_move.to_index == self.ep_index {
+            let ep_pawn_index = match self.stm {
+                WHITE => c_move.to_index + 16,
+                _ => c_move.to_index - 16,
+            };
+            self.squares[ep_pawn_index as usize] = PAWN | self.stm;
+            self.add_to_piece_list(PAWN | self.stm, ep_pawn_index);
+        } else if from_square & PIECE_MASK == KING {
+            if c_move.from_index == E1 && c_move.to_index == G1 {
+                self.squares[H1 as usize] = self.squares[F1 as usize];
+                self.piece_indexes[H1 as usize] = self.piece_indexes[F1 as usize];
+                self.squares[F1 as usize] = EMPTY_SQUARE;
+                self.piece_indexes[F1 as usize] = 0;
+                self.update_piece_list(
+                    self.squares[H1 as usize],
+                    self.piece_indexes[H1 as usize],
+                    H1,
+                );
+            } else if c_move.from_index == E1 && c_move.to_index == C1 {
+                self.squares[A1 as usize] = self.squares[D1 as usize];
+                self.piece_indexes[A1 as usize] = self.piece_indexes[D1 as usize];
+                self.squares[D1 as usize] = EMPTY_SQUARE;
+                self.piece_indexes[D1 as usize] = 0;
+                self.update_piece_list(
+                    self.squares[A1 as usize],
+                    self.piece_indexes[A1 as usize],
+                    A1,
+                );
+            } else if c_move.from_index == E8 && c_move.to_index == G8 {
+                self.squares[H8 as usize] = self.squares[F8 as usize];
+                self.piece_indexes[H8 as usize] = self.piece_indexes[F8 as usize];
+                self.squares[F8 as usize] = EMPTY_SQUARE;
+                self.piece_indexes[F8 as usize] = 0;
+                self.update_piece_list(
+                    self.squares[H8 as usize],
+                    self.piece_indexes[H8 as usize],
+                    H8,
+                );
+            } else if c_move.from_index == E8 && c_move.to_index == C8 {
+                self.squares[A8 as usize] = self.squares[D8 as usize];
+                self.piece_indexes[A8 as usize] = self.piece_indexes[D8 as usize];
+                self.squares[D8 as usize] = EMPTY_SQUARE;
+                self.piece_indexes[D8 as usize] = 0;
+                self.update_piece_list(
+                    self.squares[A8 as usize],
+                    self.piece_indexes[A8 as usize],
+                    A8,
+                );
+            }
+        }
+
+        if c_move.promotion_piece != 0 {
+            self.squares[c_move.from_index as usize] = PAWN | self.stm;
+            self.remove_from_piece_list(
+                c_move.promotion_piece | self.stm,
+                self.piece_indexes[c_move.from_index as usize],
+            );
+            self.add_to_piece_list(PAWN | self.stm, c_move.from_index);
+        }
     }
 
     fn add_to_piece_list(&mut self, piece_type: u8, square_index: u8) {
@@ -357,26 +446,54 @@ impl Board {
 
     fn update_piece_list(&mut self, piece_type: u8, piece_index: u8, square_index: u8) {
         match piece_type {
-            x if x == (BLACK | PAWN) => self.b_pawn_indexes[piece_index as usize] = square_index,
+            x if x == (BLACK | PAWN) => {
+                self.b_pawn_indexes[piece_index as usize] = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
+            }
             x if x == (BLACK | KNIGHT) => {
-                self.b_knight_indexes[piece_index as usize] = square_index
+                self.b_knight_indexes[piece_index as usize] = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
             }
             x if x == (BLACK | BISHOP) => {
-                self.b_bishop_indexes[piece_index as usize] = square_index
+                self.b_bishop_indexes[piece_index as usize] = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
             }
-            x if x == (BLACK | ROOK) => self.b_rook_indexes[piece_index as usize] = square_index,
-            x if x == (BLACK | QUEEN) => self.b_queen_indexes[piece_index as usize] = square_index,
-            x if x == (BLACK | KING) => self.b_king_index = square_index,
-            x if x == (WHITE | PAWN) => self.w_pawn_indexes[piece_index as usize] = square_index,
+            x if x == (BLACK | ROOK) => {
+                self.b_rook_indexes[piece_index as usize] = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
+            }
+            x if x == (BLACK | QUEEN) => {
+                self.b_queen_indexes[piece_index as usize] = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
+            }
+            x if x == (BLACK | KING) => {
+                self.b_king_index = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
+            }
+            x if x == (WHITE | PAWN) => {
+                self.w_pawn_indexes[piece_index as usize] = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
+            }
             x if x == (WHITE | KNIGHT) => {
-                self.w_knight_indexes[piece_index as usize] = square_index
+                self.w_knight_indexes[piece_index as usize] = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
             }
             x if x == (WHITE | BISHOP) => {
-                self.w_bishop_indexes[piece_index as usize] = square_index
+                self.w_bishop_indexes[piece_index as usize] = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
             }
-            x if x == (WHITE | ROOK) => self.w_rook_indexes[piece_index as usize] = square_index,
-            x if x == (WHITE | QUEEN) => self.w_queen_indexes[piece_index as usize] = square_index,
-            x if x == (WHITE | KING) => self.w_king_index = square_index,
+            x if x == (WHITE | ROOK) => {
+                self.w_rook_indexes[piece_index as usize] = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
+            }
+            x if x == (WHITE | QUEEN) => {
+                self.w_queen_indexes[piece_index as usize] = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
+            }
+            x if x == (WHITE | KING) => {
+                self.w_king_index = square_index;
+                self.piece_indexes[square_index as usize] = piece_index;
+            }
             _ => {}
         }
     }
@@ -386,51 +503,61 @@ impl Board {
             x if x == (BLACK | PAWN) => {
                 self.b_pawn_indexes[piece_index as usize] =
                     self.b_pawn_indexes[self.b_pawns as usize - 1];
+                self.piece_indexes[piece_index as usize] = 0;
                 self.b_pawns -= 1;
             }
             x if x == (BLACK | KNIGHT) => {
                 self.b_knight_indexes[piece_index as usize] =
                     self.b_knight_indexes[self.b_knights as usize - 1];
+                self.piece_indexes[piece_index as usize] = 0;
                 self.b_knights -= 1;
             }
             x if x == (BLACK | BISHOP) => {
                 self.b_bishop_indexes[piece_index as usize] =
                     self.b_bishop_indexes[self.b_bishops as usize - 1];
+                self.piece_indexes[piece_index as usize] = 0;
                 self.b_bishops -= 1;
             }
             x if x == (BLACK | ROOK) => {
                 self.b_rook_indexes[piece_index as usize] =
                     self.b_rook_indexes[self.b_rooks as usize - 1];
+                self.piece_indexes[piece_index as usize] = 0;
                 self.b_rooks -= 1;
             }
             x if x == (BLACK | QUEEN) => {
                 self.b_queen_indexes[piece_index as usize] =
                     self.b_queen_indexes[self.b_queens as usize - 1];
+                self.piece_indexes[piece_index as usize] = 0;
                 self.b_queens -= 1;
             }
             x if x == (WHITE | PAWN) => {
                 self.w_pawn_indexes[piece_index as usize] =
                     self.w_pawn_indexes[self.w_pawns as usize - 1];
+                self.piece_indexes[piece_index as usize] = 0;
                 self.w_pawns -= 1;
             }
             x if x == (WHITE | KNIGHT) => {
                 self.w_knight_indexes[piece_index as usize] =
                     self.w_knight_indexes[self.w_knights as usize - 1];
+                self.piece_indexes[piece_index as usize] = 0;
                 self.w_knights -= 1;
             }
             x if x == (WHITE | BISHOP) => {
                 self.w_bishop_indexes[piece_index as usize] =
                     self.w_bishop_indexes[self.w_bishops as usize - 1];
+                self.piece_indexes[piece_index as usize] = 0;
                 self.w_bishops -= 1;
             }
             x if x == (WHITE | ROOK) => {
                 self.w_rook_indexes[piece_index as usize] =
                     self.w_rook_indexes[self.w_rooks as usize - 1];
+                self.piece_indexes[piece_index as usize] = 0;
                 self.w_rooks -= 1;
             }
             x if x == (WHITE | QUEEN) => {
                 self.w_queen_indexes[piece_index as usize] =
                     self.w_queen_indexes[self.w_queens as usize - 1];
+                self.piece_indexes[piece_index as usize] = 0;
                 self.w_queens -= 1;
             }
             _ => {}
