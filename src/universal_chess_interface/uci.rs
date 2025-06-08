@@ -3,6 +3,7 @@ use std::io::Write;
 use crate::board_state::board::Board;
 use crate::board_state::c_move_list::CMoveList;
 use crate::board_state::move_gen::generate_moves;
+use crate::board_state::perft;
 
 pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
     let parts: Vec<&str> = command.split_whitespace().collect();
@@ -34,6 +35,9 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
                 let mut c_move_list = CMoveList::new();
                 generate_moves(board, &mut c_move_list);
                 c_move_list.print_moves();
+            } else if parts.len() > 1 && parts[1] == "perft" {
+                let depth = parts.get(2).unwrap_or(&"1").parse().unwrap_or(1) as u64;
+                perft::print_perft(board, depth);
             }
             true
         }

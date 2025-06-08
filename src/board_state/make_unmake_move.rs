@@ -107,7 +107,7 @@ impl Board {
             WHITE => self.fullmove,
             _ => self.fullmove + 1,
         };
-        self.stm = self.stm ^ OFF_BOARD_SQUARE;
+        self.stm ^= OFF_BOARD_SQUARE;
         self.history_index += 1;
     }
 
@@ -117,7 +117,7 @@ impl Board {
         self.castling_rights = self.castling_rights_history[self.history_index as usize];
         self.halfmove = self.halfmove_history[self.history_index as usize];
 
-        self.stm = self.stm ^ OFF_BOARD_SQUARE;
+        self.stm ^= OFF_BOARD_SQUARE;
         self.fullmove = match self.stm {
             WHITE => self.fullmove,
             _ => self.fullmove - 1,
