@@ -6,10 +6,12 @@ use crate::board_state::{
     square_index::{A8, B1, B8, C1, C8, D1, D8, F1, F8, G1, G8, H1},
 };
 
-const ATTACK: u8 = 1;
-const DEFEND: u8 = 2;
-const PIN: u8 = 4;
-const EP_PIN: u8 = 8;
+const ATTACK: u8 = 8;
+const DEFEND: u8 = 16;
+const CHECK: u8 = 32;
+const PIN: u8 = 64;
+const EP_PIN: u8 = 128;
+const ATTACK_MASK: u8 = ATTACK | DEFEND | CHECK;
 const RAY_DETECTION_OFFSET: i16 = -(A8 as i16 - H1 as i16);
 const RAY_DETECTION: [i16; 240] = [
     17, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 15, 0, 0, 17, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 15,
@@ -433,12 +435,23 @@ fn add_legal_move(
 ) {
     let from_square = board.squares[from_index as usize];
     if from_square & PIECE_MASK == KING {
-        if adp_map[to_index as usize] != 0 {
+        if (adp_map[to_index as usize] & CHECK != CHECK || check_count != 1)
+            && adp_map[to_index as usize] & ATTACK_MASK != 0
+        {
             return;
         }
-    } else if check_count > 1
-        || (check_count == 1 && adp_map[to_index as usize] & DEFEND != DEFEND)
-        || adp_map[from_index as usize] & PIN == PIN
+    } else if check_count > 1 {
+        return;
+    } else if check_count == 1 {
+        if adp_map[to_index as usize] & DEFEND != DEFEND
+            || adp_map[from_index as usize] & PIN == PIN
+        {
+            return;
+        }
+    } else if (adp_map[from_index as usize] & PIN == PIN
+        && (adp_map[to_index as usize] & PIN != PIN
+            || adp_map[from_index as usize] & PIECE_MASK
+                != adp_map[to_index as usize] & PIECE_MASK))
         || (from_square & PIECE_MASK == PAWN
             && to_index == board.ep_index
             && adp_map[to_index as usize] & EP_PIN == EP_PIN)
@@ -601,7 +614,7 @@ fn set_adp_non_sliding(
         adp_map[to_index as usize] |= ATTACK;
         if to_index == stm_king_index {
             *check_count += 1;
-            adp_map[from_index as usize] |= DEFEND;
+            adp_map[from_index as usize] |= CHECK | DEFEND;
         }
     }
 }
@@ -631,6 +644,7 @@ fn set_adp_sliding(
         let next_to_square = board.squares[next_to_index as usize];
         if to_index as u8 == stm_king_index {
             *check_count += 1;
+            adp_map[from_index as usize] |= CHECK;
             let mut defend_index = from_index as i16;
             while defend_index != to_index {
                 adp_map[defend_index as usize] |= DEFEND;
@@ -660,7 +674,6 @@ fn set_adp_sliding(
                 adp_map[board.ep_index as usize] |= EP_PIN;
             }
         } else if possible_pin && to_square & OFF_BOARD_SQUARE == board.stm {
-            let pin_index = to_index;
             to_index += direction;
             to_square = board.squares[to_index as usize];
             while to_square == EMPTY_SQUARE {
@@ -668,7 +681,12 @@ fn set_adp_sliding(
                 to_square = board.squares[to_index as usize];
             }
             if to_index as u8 == stm_king_index {
-                adp_map[pin_index as usize] |= PIN;
+                let from_square = board.squares[from_index as usize] & PIECE_MASK;
+                let mut pin_ray_index = from_index as i16;
+                while pin_ray_index != stm_king_index as i16 {
+                    adp_map[pin_ray_index as usize] |= from_square | PIN;
+                    pin_ray_index += direction;
+                }
             }
         }
     }
