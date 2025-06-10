@@ -24,19 +24,31 @@ impl Board {
             self.remove_piece(ep_pawn_index);
             self.captured_piece_history[self.history_index as usize] = ep_pawn_square;
         } else if from_square & PIECE_MASK == KING {
+            if self.stm == WHITE {
+                self.castling_rights =
+                    (self.castling_rights | WHITE_KING | WHITE_QUEEN) ^ (WHITE_KING | WHITE_QUEEN);
+            } else {
+                self.castling_rights =
+                    (self.castling_rights | BLACK_KING | BLACK_QUEEN) ^ (BLACK_KING | BLACK_QUEEN);
+            }
+
             if c_move.from_index == E1 && c_move.to_index == G1 {
-                self.castling_rights ^= WHITE_KING;
                 self.move_piece(H1, F1);
             } else if c_move.from_index == E1 && c_move.to_index == C1 {
-                self.castling_rights ^= WHITE_QUEEN;
                 self.move_piece(A1, D1);
             } else if c_move.from_index == E8 && c_move.to_index == G8 {
-                self.castling_rights ^= BLACK_KING;
                 self.move_piece(H8, F8);
             } else if c_move.from_index == E8 && c_move.to_index == C8 {
-                self.castling_rights ^= BLACK_QUEEN;
                 self.move_piece(A8, D8);
             }
+        } else if c_move.from_index == A1 || c_move.to_index == A1 {
+            self.castling_rights = (self.castling_rights | WHITE_QUEEN) ^ WHITE_QUEEN;
+        } else if c_move.from_index == H1 || c_move.to_index == H1 {
+            self.castling_rights = (self.castling_rights | WHITE_KING) ^ WHITE_KING;
+        } else if c_move.from_index == A8 || c_move.to_index == A8 {
+            self.castling_rights = (self.castling_rights | BLACK_QUEEN) ^ BLACK_QUEEN;
+        } else if c_move.from_index == H8 || c_move.to_index == H8 {
+            self.castling_rights = (self.castling_rights | BLACK_KING) ^ BLACK_KING;
         }
         if to_square != EMPTY_SQUARE {
             self.captured_piece_history[self.history_index as usize] = to_square;
@@ -104,8 +116,8 @@ impl Board {
         }
 
         if c_move.promotion_piece != 0 {
-            self.remove_piece(c_move.to_index);
-            self.add_piece(self.stm | PAWN, c_move.to_index);
+            self.remove_piece(c_move.from_index);
+            self.add_piece(self.stm | PAWN, c_move.from_index);
         }
     }
 }

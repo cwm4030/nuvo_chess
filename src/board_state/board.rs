@@ -1,8 +1,10 @@
 use crate::board_state::{
+    c_move_list::CMoveList,
     castling::{BLACK_KING, BLACK_QUEEN, WHITE_KING, WHITE_QUEEN, get_castling_rights_string},
+    move_gen::generate_moves,
     piece_type::{
-        BISHOP, BLACK, EMPTY_SQUARE, KING, KNIGHT, NO_PIECE, OFF_BOARD_SQUARE, PAWN, QUEEN, ROOK,
-        WHITE, get_piece_string, is_black, is_white,
+        BISHOP, BLACK, EMPTY_SQUARE, KING, KNIGHT, NO_PIECE, OFF_BOARD_SQUARE, PAWN, PIECE_MASK,
+        QUEEN, ROOK, WHITE, get_piece_string, is_black, is_white,
     },
     square_index::{ON_AND_OFF_BOARD_SQUARES, ON_BOARD_SQUARES, SQUARE_NAMES},
 };
@@ -175,6 +177,7 @@ impl Board {
         let fen_ep = fen_parts.get(3).unwrap_or(&"");
         let fen_halfmove = fen_parts.get(4).unwrap_or(&"0");
         let fen_fullmove = fen_parts.get(5).unwrap_or(&"1");
+        let following_moves = fen_parts[6..].to_vec();
 
         self.clear_squares_and_pieces();
         self.set_squares_and_pieces(fen_pieces);
@@ -183,9 +186,14 @@ impl Board {
         self.set_ep(fen_ep);
         self.halfmove = fen_halfmove.parse().unwrap_or(0) as u8;
         self.fullmove = fen_fullmove.parse().unwrap_or(1) as u16;
+        self.play_following_moves(following_moves);
     }
 
     pub fn add_piece(&mut self, piece_type: u8, square_index: u8) {
+        debug_assert!(piece_type & PIECE_MASK >= PAWN && piece_type & PIECE_MASK <= KING);
+        debug_assert!(piece_type & OFF_BOARD_SQUARE != 0);
+        debug_assert!(self.squares[square_index as usize] == EMPTY_SQUARE);
+        debug_assert!(self.piece_indexes[square_index as usize] == NO_PIECE);
         self.squares[square_index as usize] = piece_type;
         match piece_type {
             x if x == (BLACK | PAWN) => {
@@ -281,6 +289,8 @@ impl Board {
         let piece_index = self.piece_indexes[square_index as usize];
         self.squares[square_index as usize] = EMPTY_SQUARE;
         self.piece_indexes[square_index as usize] = NO_PIECE;
+        debug_assert!(piece_type != EMPTY_SQUARE);
+        debug_assert!(piece_index != NO_PIECE);
         match piece_type {
             x if x == (BLACK | PAWN) => {
                 self.b_pawn_indexes[piece_index as usize] =
@@ -488,6 +498,20 @@ impl Board {
             self.ep_index = 0;
         } else {
             self.ep_index = rank * 16 + file;
+        }
+    }
+
+    fn play_following_moves(&mut self, following_moves: Vec<&str>) {
+        for c_move_str in following_moves {
+            let mut c_move_list = CMoveList::new();
+            generate_moves(self, &mut c_move_list);
+            for i in 0..c_move_list.count {
+                let c_move = c_move_list.moves[i];
+                if c_move.get_c_move_string() == c_move_str {
+                    self.make_move(&c_move);
+                    break;
+                }
+            }
         }
     }
 }
