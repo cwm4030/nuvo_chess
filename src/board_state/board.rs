@@ -1,10 +1,11 @@
 use crate::board_state::{
+    c_move::CMove,
     c_move_list::CMoveList,
     castling::{BLACK_KING, BLACK_QUEEN, WHITE_KING, WHITE_QUEEN, get_castling_rights_string},
     move_gen::generate_moves,
     piece_type::{
-        BISHOP, BLACK, EMPTY_SQUARE, KING, KNIGHT, NO_PIECE, OFF_BOARD_SQUARE, PAWN, PIECE_MASK,
-        QUEEN, ROOK, WHITE, get_piece_string, is_black, is_white,
+        BISHOP, BLACK, EMPTY_SQUARE, KING, KNIGHT, NO_PIECE, OFF_BOARD_SQUARE, PAWN, QUEEN, ROOK,
+        WHITE, get_piece_string, is_black, is_white,
     },
     square_index::{ON_AND_OFF_BOARD_SQUARES, ON_BOARD_SQUARES, SQUARE_NAMES},
 };
@@ -44,6 +45,7 @@ pub struct Board {
     pub ep_index_history: [u8; 256],
     pub castling_rights_history: [u8; 256],
     pub halfmove_history: [u8; 256],
+    pub move_history: [CMove; 256],
     pub history_index: u8,
 }
 
@@ -83,6 +85,11 @@ impl Board {
             ep_index_history: [0; 256],
             castling_rights_history: [0; 256],
             halfmove_history: [0; 256],
+            move_history: [CMove {
+                from_index: 0,
+                to_index: 0,
+                promotion_piece: 0,
+            }; 256],
             history_index: 0,
         }
     }
@@ -170,14 +177,23 @@ impl Board {
     }
 
     pub fn set_from_fen(&mut self, fen: &str) {
-        let fen_parts: Vec<&str> = fen.split_whitespace().collect();
+        let fen_parts_and_fen_moves: Vec<&str> = fen.split(" moves ").collect();
+        let fen_parts: Vec<&str> = fen_parts_and_fen_moves
+            .first()
+            .unwrap_or(&"")
+            .split_whitespace()
+            .collect();
         let fen_pieces = fen_parts.first().unwrap_or(&"");
         let fen_stm = fen_parts.get(1).unwrap_or(&"");
         let fen_castling = fen_parts.get(2).unwrap_or(&"");
         let fen_ep = fen_parts.get(3).unwrap_or(&"");
         let fen_halfmove = fen_parts.get(4).unwrap_or(&"0");
         let fen_fullmove = fen_parts.get(5).unwrap_or(&"1");
-        let following_moves = fen_parts[6..].to_vec();
+        let fen_moves = fen_parts_and_fen_moves
+            .get(1)
+            .unwrap_or(&"")
+            .split_whitespace()
+            .collect::<Vec<&str>>();
 
         self.clear_squares_and_pieces();
         self.set_squares_and_pieces(fen_pieces);
@@ -186,14 +202,33 @@ impl Board {
         self.set_ep(fen_ep);
         self.halfmove = fen_halfmove.parse().unwrap_or(0) as u8;
         self.fullmove = fen_fullmove.parse().unwrap_or(1) as u16;
-        self.play_following_moves(following_moves);
+        self.history_index = 0;
+        self.play_following_moves(fen_moves);
+    }
+
+    pub fn make_move_str(&mut self, c_move_str: &str) {
+        let mut c_move_list = CMoveList::new();
+        generate_moves(self, &mut c_move_list);
+        for i in 0..c_move_list.count {
+            let c_move = c_move_list.moves[i];
+            if c_move.get_c_move_string() == c_move_str {
+                self.make_move(&c_move);
+                return;
+            }
+        }
+    }
+
+    pub fn unmake_move_str(&mut self, c_move_str: &str) {
+        if self.history_index == 0 {
+            return;
+        }
+        let previous_move = self.move_history[self.history_index as usize - 1];
+        if previous_move.get_c_move_string() == c_move_str {
+            self.unmake_move(&previous_move);
+        }
     }
 
     pub fn add_piece(&mut self, piece_type: u8, square_index: u8) {
-        debug_assert!(piece_type & PIECE_MASK >= PAWN && piece_type & PIECE_MASK <= KING);
-        debug_assert!(piece_type & OFF_BOARD_SQUARE != 0);
-        debug_assert!(self.squares[square_index as usize] == EMPTY_SQUARE);
-        debug_assert!(self.piece_indexes[square_index as usize] == NO_PIECE);
         self.squares[square_index as usize] = piece_type;
         match piece_type {
             x if x == (BLACK | PAWN) => {
@@ -289,70 +324,68 @@ impl Board {
         let piece_index = self.piece_indexes[square_index as usize];
         self.squares[square_index as usize] = EMPTY_SQUARE;
         self.piece_indexes[square_index as usize] = NO_PIECE;
-        debug_assert!(piece_type != EMPTY_SQUARE);
-        debug_assert!(piece_index != NO_PIECE);
         match piece_type {
             x if x == (BLACK | PAWN) => {
-                self.b_pawn_indexes[piece_index as usize] =
-                    self.b_pawn_indexes[self.b_pawns as usize - 1];
-                self.b_pawn_indexes[self.b_pawns as usize - 1] = 0;
+                let updated_square_index = self.b_pawn_indexes[self.b_pawns as usize - 1];
+                self.b_pawn_indexes[piece_index as usize] = updated_square_index;
+                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.b_pawns -= 1;
             }
             x if x == (BLACK | KNIGHT) => {
-                self.b_knight_indexes[piece_index as usize] =
-                    self.b_knight_indexes[self.b_knights as usize - 1];
-                self.b_knight_indexes[self.b_knights as usize - 1] = 0;
+                let updated_square_index = self.b_knight_indexes[self.b_knights as usize - 1];
+                self.b_knight_indexes[piece_index as usize] = updated_square_index;
+                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.b_knights -= 1;
             }
             x if x == (BLACK | BISHOP) => {
-                self.b_bishop_indexes[piece_index as usize] =
-                    self.b_bishop_indexes[self.b_bishops as usize - 1];
-                self.b_bishop_indexes[self.b_bishops as usize - 1] = 0;
+                let updated_square_index = self.b_bishop_indexes[self.b_bishops as usize - 1];
+                self.b_bishop_indexes[piece_index as usize] = updated_square_index;
+                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.b_bishops -= 1;
             }
             x if x == (BLACK | ROOK) => {
-                self.b_rook_indexes[piece_index as usize] =
-                    self.b_rook_indexes[self.b_rooks as usize - 1];
-                self.b_rook_indexes[self.b_rooks as usize - 1] = 0;
+                let updated_square_index = self.b_rook_indexes[self.b_rooks as usize - 1];
+                self.b_rook_indexes[piece_index as usize] = updated_square_index;
+                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.b_rooks -= 1;
             }
             x if x == (BLACK | QUEEN) => {
-                self.b_queen_indexes[piece_index as usize] =
-                    self.b_queen_indexes[self.b_queens as usize - 1];
-                self.b_queen_indexes[self.b_queens as usize - 1] = 0;
+                let updated_square_index = self.b_queen_indexes[self.b_queens as usize - 1];
+                self.b_queen_indexes[piece_index as usize] = updated_square_index;
+                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.b_queens -= 1;
             }
             x if x == (BLACK | KING) => {
                 self.b_king_index = 0;
             }
             x if x == (WHITE | PAWN) => {
-                self.w_pawn_indexes[piece_index as usize] =
-                    self.w_pawn_indexes[self.w_pawns as usize - 1];
-                self.w_pawn_indexes[self.w_pawns as usize - 1] = 0;
+                let updated_square_index = self.w_pawn_indexes[self.w_pawns as usize - 1];
+                self.w_pawn_indexes[piece_index as usize] = updated_square_index;
+                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.w_pawns -= 1;
             }
             x if x == (WHITE | KNIGHT) => {
-                self.w_knight_indexes[piece_index as usize] =
-                    self.w_knight_indexes[self.w_knights as usize - 1];
-                self.w_knight_indexes[self.w_knights as usize - 1] = 0;
+                let updated_square_index = self.w_knight_indexes[self.w_knights as usize - 1];
+                self.w_knight_indexes[piece_index as usize] = updated_square_index;
+                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.w_knights -= 1;
             }
             x if x == (WHITE | BISHOP) => {
-                self.w_bishop_indexes[piece_index as usize] =
-                    self.w_bishop_indexes[self.w_bishops as usize - 1];
-                self.w_bishop_indexes[self.w_bishops as usize - 1] = 0;
+                let updated_square_index = self.w_bishop_indexes[self.w_bishops as usize - 1];
+                self.w_bishop_indexes[piece_index as usize] = updated_square_index;
+                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.w_bishops -= 1;
             }
             x if x == (WHITE | ROOK) => {
-                self.w_rook_indexes[piece_index as usize] =
-                    self.w_rook_indexes[self.w_rooks as usize - 1];
-                self.w_rook_indexes[self.w_rooks as usize - 1] = 0;
+                let updated_square_index = self.w_rook_indexes[self.w_rooks as usize - 1];
+                self.w_rook_indexes[piece_index as usize] = updated_square_index;
+                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.w_rooks -= 1;
             }
             x if x == (WHITE | QUEEN) => {
-                self.w_queen_indexes[piece_index as usize] =
-                    self.w_queen_indexes[self.w_queens as usize - 1];
-                self.w_queen_indexes[self.w_queens as usize - 1] = 0;
+                let updated_square_index = self.w_queen_indexes[self.w_queens as usize - 1];
+                self.w_queen_indexes[piece_index as usize] = updated_square_index;
+                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.w_queens -= 1;
             }
             x if x == (WHITE | KING) => {
@@ -503,15 +536,7 @@ impl Board {
 
     fn play_following_moves(&mut self, following_moves: Vec<&str>) {
         for c_move_str in following_moves {
-            let mut c_move_list = CMoveList::new();
-            generate_moves(self, &mut c_move_list);
-            for i in 0..c_move_list.count {
-                let c_move = c_move_list.moves[i];
-                if c_move.get_c_move_string() == c_move_str {
-                    self.make_move(&c_move);
-                    break;
-                }
-            }
+            self.make_move_str(c_move_str);
         }
     }
 }

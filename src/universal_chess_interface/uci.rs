@@ -22,7 +22,8 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
                 let fen = parts[2..].join(" ");
                 board.set_from_fen(fen.as_str());
             } else if parts.len() > 1 && parts[1] == "startpos" {
-                let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ".to_string()
+                let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".to_string()
+                    + " moves "
                     + &parts[2..].join(" ").to_string();
                 board.set_from_fen(fen.as_str());
             } else if parts.len() > 1 && parts[1] == "print" {
@@ -34,6 +35,12 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
             } else if parts.len() > 1 && parts[1] == "perft" {
                 let depth = parts.get(2).unwrap_or(&"1").parse().unwrap_or(1) as u64;
                 perft::print_perft(board, depth);
+            } else if parts.len() > 1 && parts[1] == "make_move" {
+                let move_str = parts.get(2).unwrap_or(&"");
+                board.make_move_str(move_str);
+            } else if parts.len() > 1 && parts[1] == "unmake_move" {
+                let move_str = parts.get(2).unwrap_or(&"");
+                board.unmake_move_str(move_str);
             }
             true
         }

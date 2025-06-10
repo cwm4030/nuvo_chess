@@ -12,6 +12,7 @@ impl Board {
         self.castling_rights_history[self.history_index as usize] = self.castling_rights;
         self.halfmove_history[self.history_index as usize] = self.halfmove;
         self.captured_piece_history[self.history_index as usize] = EMPTY_SQUARE;
+        self.move_history[self.history_index as usize] = *c_move;
 
         let from_square = self.squares[c_move.from_index as usize];
         let to_square = self.squares[c_move.to_index as usize];
@@ -20,9 +21,7 @@ impl Board {
                 WHITE => c_move.to_index + 16,
                 _ => c_move.to_index - 16,
             };
-            let ep_pawn_square = self.squares[ep_pawn_index as usize];
             self.remove_piece(ep_pawn_index);
-            self.captured_piece_history[self.history_index as usize] = ep_pawn_square;
         } else if from_square & PIECE_MASK == KING {
             if self.stm == WHITE {
                 self.castling_rights =
@@ -60,11 +59,13 @@ impl Board {
         }
 
         let move_diff = (c_move.from_index as i16 - c_move.to_index as i16).abs();
-        if to_square & PIECE_MASK == PAWN && move_diff == 32 {
+        if from_square & PIECE_MASK == PAWN && move_diff == 32 {
             self.ep_index = match self.stm {
                 WHITE => c_move.to_index + 16,
                 _ => c_move.to_index - 16,
             };
+        } else {
+            self.ep_index = 0;
         }
 
         if from_square & PIECE_MASK == PAWN || to_square != EMPTY_SQUARE {
@@ -102,7 +103,7 @@ impl Board {
                 WHITE => c_move.to_index + 16,
                 _ => c_move.to_index - 16,
             };
-            self.add_piece(self.stm | PAWN, ep_pawn_index);
+            self.add_piece((self.stm ^ OFF_BOARD_SQUARE) | PAWN, ep_pawn_index);
         } else if from_square & PIECE_MASK == KING {
             if c_move.from_index == E1 && c_move.to_index == G1 {
                 self.move_piece(F1, H1);

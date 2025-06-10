@@ -1,7 +1,7 @@
 pub const WHITE_KING: u8 = 1;
 pub const WHITE_QUEEN: u8 = 2;
-pub const BLACK_KING: u8 = 3;
-pub const BLACK_QUEEN: u8 = 4;
+pub const BLACK_KING: u8 = 4;
+pub const BLACK_QUEEN: u8 = 8;
 
 pub fn get_castling_rights_string(castling_rights: u8) -> String {
     let mut rights = String::new();
