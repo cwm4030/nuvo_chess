@@ -6,12 +6,13 @@ use crate::board_state::{
     square_index::{A8, B1, B8, C1, C8, D1, D8, F1, F8, G1, G8, H1},
 };
 
-const ATTACK: u8 = 8;
-const DEFEND: u8 = 16;
-const CHECK: u8 = 32;
-const PIN: u8 = 64;
-const EP_PIN: u8 = 128;
-const ATTACK_MASK: u8 = ATTACK | DEFEND | CHECK;
+const PINNER: u16 = 15;
+const ATTACK: u16 = 16;
+const DEFEND: u16 = 32;
+const CHECK: u16 = 64;
+const PIN: u16 = 128;
+const EP_PIN: u16 = 256;
+const ATTACK_MASK: u16 = ATTACK | CHECK;
 const RAY_DETECTION_OFFSET: i16 = -(A8 as i16 - H1 as i16);
 const RAY_DETECTION: [i16; 240] = [
     17, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 15, 0, 0, 17, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 15,
@@ -207,7 +208,7 @@ pub fn generate_moves(board: &Board, c_move_list: &mut CMoveList) {
 
 fn generate_non_capture_pawn_moves(
     board: &Board,
-    adp_map: &[u8; 192],
+    adp_map: &[u16; 192],
     check_count: u8,
     from_index: u8,
     directions: &[i16],
@@ -258,7 +259,7 @@ fn generate_non_capture_pawn_moves(
 
 fn generate_capture_pawn_moves(
     board: &Board,
-    adp_map: &[u8; 192],
+    adp_map: &[u16; 192],
     check_count: u8,
     from_index: u8,
     directions: &[i16],
@@ -309,7 +310,7 @@ fn generate_capture_pawn_moves(
 
 fn generate_non_sliding_moves(
     board: &Board,
-    adp_map: &[u8; 192],
+    adp_map: &[u16; 192],
     check_count: u8,
     from_index: u8,
     directions: &[i16],
@@ -336,7 +337,7 @@ fn generate_non_sliding_moves(
 
 fn generate_sliding_moves(
     board: &Board,
-    adp_map: &[u8; 192],
+    adp_map: &[u16; 192],
     check_count: u8,
     from_index: u8,
     directions: &[i16],
@@ -375,7 +376,7 @@ fn generate_sliding_moves(
 
 fn generate_castle_moves(
     board: &Board,
-    adp_map: &[u8; 192],
+    adp_map: &[u16; 192],
     check_count: u8,
     c_move_list: &mut CMoveList,
 ) {
@@ -426,7 +427,7 @@ fn generate_castle_moves(
 
 fn add_legal_move(
     board: &Board,
-    adp_map: &[u8; 192],
+    adp_map: &[u16; 192],
     check_count: u8,
     from_index: u8,
     to_index: u8,
@@ -435,8 +436,11 @@ fn add_legal_move(
 ) {
     let from_square = board.squares[from_index as usize];
     if from_square & PIECE_MASK == KING {
-        if (adp_map[to_index as usize] & CHECK != CHECK || check_count != 1)
-            && adp_map[to_index as usize] & ATTACK_MASK != 0
+        if !((check_count > 1 && adp_map[to_index as usize] & ATTACK_MASK == 0)
+            || (check_count == 1
+                && (adp_map[to_index as usize] & ATTACK_MASK == CHECK
+                    || adp_map[to_index as usize] & ATTACK_MASK == 0))
+            || (check_count == 0 && adp_map[to_index as usize] & ATTACK_MASK == 0))
         {
             return;
         }
@@ -450,8 +454,7 @@ fn add_legal_move(
         }
     } else if (adp_map[from_index as usize] & PIN == PIN
         && (adp_map[to_index as usize] & PIN != PIN
-            || adp_map[from_index as usize] & PIECE_MASK
-                != adp_map[to_index as usize] & PIECE_MASK))
+            || adp_map[from_index as usize] & PINNER != adp_map[to_index as usize] & PINNER))
         || (from_square & PIECE_MASK == PAWN
             && to_index == board.ep_index
             && adp_map[to_index as usize] & EP_PIN == EP_PIN)
@@ -461,9 +464,10 @@ fn add_legal_move(
     c_move_list.add_move(from_index, to_index, promotion_piece);
 }
 
-fn generate_adp_map(board: &Board) -> ([u8; 192], u8) {
+fn generate_adp_map(board: &Board) -> ([u16; 192], u8) {
     let mut adp_map = [0; 192];
     let mut check_count = 0;
+    let mut pinner = 1;
 
     if board.stm == WHITE {
         for i in 0..board.b_pawns {
@@ -475,6 +479,10 @@ fn generate_adp_map(board: &Board) -> ([u8; 192], u8) {
                 &mut adp_map,
                 &mut check_count,
             );
+        }
+        let ep_pawn_index = get_ep_pawn_index(board);
+        if adp_map[ep_pawn_index as usize] & CHECK == CHECK {
+            adp_map[board.ep_index as usize] |= DEFEND;
         }
 
         for i in 0..board.b_knights {
@@ -497,6 +505,7 @@ fn generate_adp_map(board: &Board) -> ([u8; 192], u8) {
                 board.w_king_index,
                 &mut adp_map,
                 &mut check_count,
+                &mut pinner,
             );
         }
 
@@ -509,6 +518,7 @@ fn generate_adp_map(board: &Board) -> ([u8; 192], u8) {
                 board.w_king_index,
                 &mut adp_map,
                 &mut check_count,
+                &mut pinner,
             );
         }
 
@@ -521,6 +531,7 @@ fn generate_adp_map(board: &Board) -> ([u8; 192], u8) {
                 board.w_king_index,
                 &mut adp_map,
                 &mut check_count,
+                &mut pinner,
             );
         }
 
@@ -541,6 +552,10 @@ fn generate_adp_map(board: &Board) -> ([u8; 192], u8) {
                 &mut adp_map,
                 &mut check_count,
             );
+        }
+        let ep_pawn_index = get_ep_pawn_index(board);
+        if adp_map[ep_pawn_index as usize] & CHECK == CHECK {
+            adp_map[board.ep_index as usize] |= DEFEND;
         }
 
         for i in 0..board.w_knights {
@@ -563,6 +578,7 @@ fn generate_adp_map(board: &Board) -> ([u8; 192], u8) {
                 board.b_king_index,
                 &mut adp_map,
                 &mut check_count,
+                &mut pinner,
             );
         }
 
@@ -575,6 +591,7 @@ fn generate_adp_map(board: &Board) -> ([u8; 192], u8) {
                 board.b_king_index,
                 &mut adp_map,
                 &mut check_count,
+                &mut pinner,
             );
         }
 
@@ -587,6 +604,7 @@ fn generate_adp_map(board: &Board) -> ([u8; 192], u8) {
                 board.b_king_index,
                 &mut adp_map,
                 &mut check_count,
+                &mut pinner,
             );
         }
 
@@ -606,7 +624,7 @@ fn set_adp_non_sliding(
     from_index: u8,
     directions: &[i16],
     stm_king_index: u8,
-    adp_map: &mut [u8; 192],
+    adp_map: &mut [u16; 192],
     check_count: &mut u8,
 ) {
     for &direction in directions {
@@ -624,8 +642,9 @@ fn set_adp_sliding(
     from_index: u8,
     directions: &[i16],
     stm_king_index: u8,
-    adp_map: &mut [u8; 192],
+    adp_map: &mut [u16; 192],
     check_count: &mut u8,
+    pinner: &mut u16,
 ) {
     for &direction in directions {
         let ray_detection_index = from_index as i16 - stm_king_index as i16 + RAY_DETECTION_OFFSET;
@@ -644,10 +663,10 @@ fn set_adp_sliding(
         let next_to_square = board.squares[next_to_index as usize];
         if to_index as u8 == stm_king_index {
             *check_count += 1;
-            adp_map[from_index as usize] |= CHECK;
-            let mut defend_index = from_index as i16;
+            adp_map[from_index as usize] |= CHECK | DEFEND;
+            let mut defend_index = from_index as i16 + direction;
             while defend_index != to_index {
-                adp_map[defend_index as usize] |= DEFEND;
+                adp_map[defend_index as usize] |= ATTACK | DEFEND;
                 defend_index += direction;
             }
             defend_index += direction;
@@ -681,12 +700,12 @@ fn set_adp_sliding(
                 to_square = board.squares[to_index as usize];
             }
             if to_index as u8 == stm_king_index {
-                let from_square = board.squares[from_index as usize] & PIECE_MASK;
                 let mut pin_ray_index = from_index as i16;
                 while pin_ray_index != stm_king_index as i16 {
-                    adp_map[pin_ray_index as usize] |= from_square | PIN;
+                    adp_map[pin_ray_index as usize] |= *pinner | PIN;
                     pin_ray_index += direction;
                 }
+                *pinner += 1;
             }
         }
     }

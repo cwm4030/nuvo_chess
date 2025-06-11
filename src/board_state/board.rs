@@ -324,74 +324,69 @@ impl Board {
         let piece_index = self.piece_indexes[square_index as usize];
         self.squares[square_index as usize] = EMPTY_SQUARE;
         self.piece_indexes[square_index as usize] = NO_PIECE;
+        let mut updated_square_index = square_index;
         match piece_type {
             x if x == (BLACK | PAWN) => {
-                let updated_square_index = self.b_pawn_indexes[self.b_pawns as usize - 1];
+                updated_square_index = self.b_pawn_indexes[self.b_pawns as usize - 1];
                 self.b_pawn_indexes[piece_index as usize] = updated_square_index;
-                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.b_pawns -= 1;
             }
             x if x == (BLACK | KNIGHT) => {
-                let updated_square_index = self.b_knight_indexes[self.b_knights as usize - 1];
+                updated_square_index = self.b_knight_indexes[self.b_knights as usize - 1];
                 self.b_knight_indexes[piece_index as usize] = updated_square_index;
-                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.b_knights -= 1;
             }
             x if x == (BLACK | BISHOP) => {
-                let updated_square_index = self.b_bishop_indexes[self.b_bishops as usize - 1];
+                updated_square_index = self.b_bishop_indexes[self.b_bishops as usize - 1];
                 self.b_bishop_indexes[piece_index as usize] = updated_square_index;
-                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.b_bishops -= 1;
             }
             x if x == (BLACK | ROOK) => {
-                let updated_square_index = self.b_rook_indexes[self.b_rooks as usize - 1];
+                updated_square_index = self.b_rook_indexes[self.b_rooks as usize - 1];
                 self.b_rook_indexes[piece_index as usize] = updated_square_index;
-                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.b_rooks -= 1;
             }
             x if x == (BLACK | QUEEN) => {
-                let updated_square_index = self.b_queen_indexes[self.b_queens as usize - 1];
+                updated_square_index = self.b_queen_indexes[self.b_queens as usize - 1];
                 self.b_queen_indexes[piece_index as usize] = updated_square_index;
-                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.b_queens -= 1;
             }
             x if x == (BLACK | KING) => {
                 self.b_king_index = 0;
             }
             x if x == (WHITE | PAWN) => {
-                let updated_square_index = self.w_pawn_indexes[self.w_pawns as usize - 1];
+                updated_square_index = self.w_pawn_indexes[self.w_pawns as usize - 1];
                 self.w_pawn_indexes[piece_index as usize] = updated_square_index;
-                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.w_pawns -= 1;
             }
             x if x == (WHITE | KNIGHT) => {
-                let updated_square_index = self.w_knight_indexes[self.w_knights as usize - 1];
+                updated_square_index = self.w_knight_indexes[self.w_knights as usize - 1];
                 self.w_knight_indexes[piece_index as usize] = updated_square_index;
-                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.w_knights -= 1;
             }
             x if x == (WHITE | BISHOP) => {
-                let updated_square_index = self.w_bishop_indexes[self.w_bishops as usize - 1];
+                updated_square_index = self.w_bishop_indexes[self.w_bishops as usize - 1];
                 self.w_bishop_indexes[piece_index as usize] = updated_square_index;
-                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.w_bishops -= 1;
             }
             x if x == (WHITE | ROOK) => {
-                let updated_square_index = self.w_rook_indexes[self.w_rooks as usize - 1];
+                updated_square_index = self.w_rook_indexes[self.w_rooks as usize - 1];
                 self.w_rook_indexes[piece_index as usize] = updated_square_index;
-                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.w_rooks -= 1;
             }
             x if x == (WHITE | QUEEN) => {
-                let updated_square_index = self.w_queen_indexes[self.w_queens as usize - 1];
+                updated_square_index = self.w_queen_indexes[self.w_queens as usize - 1];
                 self.w_queen_indexes[piece_index as usize] = updated_square_index;
-                self.piece_indexes[updated_square_index as usize] = piece_index;
                 self.w_queens -= 1;
             }
             x if x == (WHITE | KING) => {
                 self.w_king_index = 0;
             }
             _ => {}
+        }
+
+        if updated_square_index != square_index {
+            self.piece_indexes[updated_square_index as usize] = piece_index;
         }
     }
 
