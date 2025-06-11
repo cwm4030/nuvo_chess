@@ -1,6 +1,8 @@
 use std::time::Instant;
 
-use crate::board_state::{board::Board, c_move_list::CMoveList, move_gen::generate_moves};
+use crate::board_state::{
+    board::Board, c_move_list::CMoveList, move_gen::generate_moves, piece_type::OFF_BOARD_SQUARE,
+};
 
 pub fn print_perft(board: &mut Board, depth: u64) {
     let now = Instant::now();
@@ -12,7 +14,11 @@ pub fn print_perft(board: &mut Board, depth: u64) {
         let c_move = c_move_list.moves[i];
         board.make_move(&c_move);
         let nodes = perft(board, depth - 1);
-        println!("{}: {}", c_move.get_c_move_string(), nodes);
+        println!(
+            "{}: {}",
+            c_move.get_c_move_string(board.stm ^ OFF_BOARD_SQUARE),
+            nodes
+        );
         total_nodes += nodes;
         board.unmake_move(&c_move);
     }

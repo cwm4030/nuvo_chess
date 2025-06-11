@@ -11,14 +11,6 @@ pub const OFF_BOARD_SQUARE: u8 = WHITE | BLACK;
 pub const PIECE_MASK: u8 = 7;
 pub const NO_PIECE: u8 = 32;
 
-pub fn is_white(piece_type: u8) -> bool {
-    (piece_type & WHITE) != 0
-}
-
-pub fn is_black(piece_type: u8) -> bool {
-    (piece_type & BLACK) != 0
-}
-
 pub fn get_piece_string(piece_type: u8, use_ascii_piece: bool) -> String {
     if use_ascii_piece {
         match piece_type {

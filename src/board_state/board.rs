@@ -5,7 +5,7 @@ use crate::board_state::{
     move_gen::generate_moves,
     piece_type::{
         BISHOP, BLACK, EMPTY_SQUARE, KING, KNIGHT, NO_PIECE, OFF_BOARD_SQUARE, PAWN, QUEEN, ROOK,
-        WHITE, get_piece_string, is_black, is_white,
+        WHITE, get_piece_string,
     },
     square_index::{ON_AND_OFF_BOARD_SQUARES, ON_BOARD_SQUARES, SQUARE_NAMES},
 };
@@ -122,9 +122,9 @@ impl Board {
                 let piece_type = self.squares[square_index];
                 let piece_string =
                     get_piece_string(piece_type, use_ascii_piece).replace(" . ", "   ");
-                if is_white(piece_type) {
+                if piece_type & OFF_BOARD_SQUARE == WHITE {
                     foreground = white;
-                } else if is_black(piece_type) {
+                } else if piece_type & OFF_BOARD_SQUARE == BLACK {
                     foreground = black;
                 }
                 print!("{}{}", background, foreground);
@@ -211,7 +211,7 @@ impl Board {
         generate_moves(self, &mut c_move_list);
         for i in 0..c_move_list.count {
             let c_move = c_move_list.moves[i];
-            if c_move.get_c_move_string() == c_move_str {
+            if c_move.get_c_move_string(self.stm) == c_move_str {
                 self.make_move(&c_move);
                 return;
             }
@@ -223,7 +223,7 @@ impl Board {
             return;
         }
         let previous_move = self.move_history[self.history_index as usize - 1];
-        if previous_move.get_c_move_string() == c_move_str {
+        if previous_move.get_c_move_string(self.stm ^ OFF_BOARD_SQUARE) == c_move_str {
             self.unmake_move(&previous_move);
         }
     }
