@@ -4,7 +4,11 @@ use crate::board_state::{
     board::Board, c_move_list::CMoveList, move_gen::generate_moves, piece_type::OFF_BOARD_SQUARE,
 };
 
-pub fn print_perft(board: &mut Board, depth: u64) {
+pub fn print_perft(board: &mut Board, mut depth: u64) {
+    if depth == 0 {
+        depth = 1;
+    }
+    
     let now = Instant::now();
     let mut c_move_list = CMoveList::new();
     generate_moves(board, &mut c_move_list);
