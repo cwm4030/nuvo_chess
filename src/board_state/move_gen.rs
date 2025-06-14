@@ -507,8 +507,7 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
 
         set_slider_pin_defend_map(
             board,
-            board.b_bishops,
-            &board.b_bishop_indexes,
+            &board.b_bishop_indexes[..board.b_bishops as usize],
             board.w_king_index,
             BISHOP,
             &mut pin_defend_map,
@@ -518,8 +517,7 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
 
         set_slider_pin_defend_map(
             board,
-            board.b_rooks,
-            &board.b_rook_indexes,
+            &board.b_rook_indexes[..board.b_rooks as usize],
             board.w_king_index,
             ROOK,
             &mut pin_defend_map,
@@ -529,8 +527,7 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
 
         set_slider_pin_defend_map(
             board,
-            board.b_queens,
-            &board.b_queen_indexes,
+            &board.b_queen_indexes[..board.b_queens as usize],
             board.w_king_index,
             QUEEN,
             &mut pin_defend_map,
@@ -562,8 +559,7 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
 
         set_slider_pin_defend_map(
             board,
-            board.w_bishops,
-            &board.w_bishop_indexes,
+            &board.w_bishop_indexes[..board.w_bishops as usize],
             board.b_king_index,
             BISHOP,
             &mut pin_defend_map,
@@ -573,8 +569,7 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
 
         set_slider_pin_defend_map(
             board,
-            board.w_rooks,
-            &board.w_rook_indexes,
+            &board.w_rook_indexes[..board.w_rooks as usize],
             board.b_king_index,
             ROOK,
             &mut pin_defend_map,
@@ -584,8 +579,7 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
 
         set_slider_pin_defend_map(
             board,
-            board.w_queens,
-            &board.w_queen_indexes,
+            &board.w_queen_indexes[..board.w_queens as usize],
             board.b_king_index,
             QUEEN,
             &mut pin_defend_map,
@@ -599,7 +593,6 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
 
 fn set_slider_pin_defend_map(
     board: &Board,
-    num_sliders: u8,
     slider_indexes: &[u8],
     stm_king_index: u8,
     slider_type: u8,
@@ -607,8 +600,7 @@ fn set_slider_pin_defend_map(
     check_count: &mut u8,
     pinner: &mut u8,
 ) {
-    for i in 0..num_sliders {
-        let from_index = slider_indexes[i as usize];
+    for &from_index in slider_indexes {
         let attack_index = (from_index as i16 - stm_king_index as i16 + LOOKUP_OFFSET) as usize;
         let attack_piece = SLIDER_ATTACK_LOOKUP[attack_index];
         if attack_piece == 0 || (slider_type != QUEEN && attack_piece != slider_type) {
@@ -637,6 +629,7 @@ fn set_slider_pin_defend_map(
             }
         } else if board.ep_index != 0
             && slider_type == ROOK
+            && (attack_direction == -1 || attack_direction == 1)
             && to_square & PIECE_MASK == PAWN
             && next_to_square & PIECE_MASK == PAWN
             && (to_square | next_to_square) & OFF_BOARD_SQUARE == OFF_BOARD_SQUARE
@@ -699,8 +692,7 @@ fn is_square_attacked(board: &Board, square_index: u8) -> bool {
 
         if is_slider_attacking(
             board,
-            board.b_bishops,
-            &board.b_bishop_indexes,
+            &board.b_bishop_indexes[..board.b_bishops as usize],
             square_index,
             BISHOP,
             board.w_king_index,
@@ -710,8 +702,7 @@ fn is_square_attacked(board: &Board, square_index: u8) -> bool {
 
         if is_slider_attacking(
             board,
-            board.b_rooks,
-            &board.b_rook_indexes,
+            &board.b_rook_indexes[..board.b_rooks as usize],
             square_index,
             ROOK,
             board.w_king_index,
@@ -721,8 +712,7 @@ fn is_square_attacked(board: &Board, square_index: u8) -> bool {
 
         if is_slider_attacking(
             board,
-            board.b_queens,
-            &board.b_queen_indexes,
+            &board.b_queen_indexes[..board.b_queens as usize],
             square_index,
             QUEEN,
             board.w_king_index,
@@ -753,8 +743,7 @@ fn is_square_attacked(board: &Board, square_index: u8) -> bool {
 
         if is_slider_attacking(
             board,
-            board.w_bishops,
-            &board.w_bishop_indexes,
+            &board.w_bishop_indexes[..board.w_bishops as usize],
             square_index,
             BISHOP,
             board.b_king_index,
@@ -764,8 +753,7 @@ fn is_square_attacked(board: &Board, square_index: u8) -> bool {
 
         if is_slider_attacking(
             board,
-            board.w_rooks,
-            &board.w_rook_indexes,
+            &board.w_rook_indexes[..board.w_rooks as usize],
             square_index,
             ROOK,
             board.b_king_index,
@@ -775,8 +763,7 @@ fn is_square_attacked(board: &Board, square_index: u8) -> bool {
 
         if is_slider_attacking(
             board,
-            board.w_queens,
-            &board.w_queen_indexes,
+            &board.w_queen_indexes[..board.w_queens as usize],
             square_index,
             QUEEN,
             board.b_king_index,
@@ -795,14 +782,12 @@ fn is_square_attacked(board: &Board, square_index: u8) -> bool {
 
 fn is_slider_attacking(
     board: &Board,
-    num_sliders: u8,
     slider_indexes: &[u8],
     square_index: u8,
     slider_type: u8,
     stm_king_index: u8,
 ) -> bool {
-    for i in 0..num_sliders {
-        let from_index = slider_indexes[i as usize];
+    for &from_index in slider_indexes {
         let attack_index = (from_index as i16 - square_index as i16 + LOOKUP_OFFSET) as usize;
         let attack_piece = SLIDER_ATTACK_LOOKUP[attack_index];
         if attack_piece == 0 || (slider_type != QUEEN && attack_piece != slider_type) {
