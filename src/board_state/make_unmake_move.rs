@@ -40,15 +40,21 @@ impl Board {
             } else if c_move.from_index == E8 && c_move.to_index == C8 {
                 self.move_piece(A8, D8);
             }
-        } else if c_move.from_index == A1 || c_move.to_index == A1 {
+        }
+
+        if c_move.from_index == A1 || c_move.to_index == A1 {
             self.castling_rights = (self.castling_rights | WHITE_QUEEN) ^ WHITE_QUEEN;
-        } else if c_move.from_index == H1 || c_move.to_index == H1 {
+        }
+        if c_move.from_index == H1 || c_move.to_index == H1 {
             self.castling_rights = (self.castling_rights | WHITE_KING) ^ WHITE_KING;
-        } else if c_move.from_index == A8 || c_move.to_index == A8 {
+        }
+        if c_move.from_index == A8 || c_move.to_index == A8 {
             self.castling_rights = (self.castling_rights | BLACK_QUEEN) ^ BLACK_QUEEN;
-        } else if c_move.from_index == H8 || c_move.to_index == H8 {
+        }
+        if c_move.from_index == H8 || c_move.to_index == H8 {
             self.castling_rights = (self.castling_rights | BLACK_KING) ^ BLACK_KING;
         }
+
         if to_square != EMPTY_SQUARE {
             self.captured_piece_history[self.history_index as usize] = to_square;
         }
