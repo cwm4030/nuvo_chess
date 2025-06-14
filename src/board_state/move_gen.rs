@@ -484,6 +484,9 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
 
     if board.stm == WHITE {
         for &direction in &PAWN_WHITE_DIRECTIONS[2..] {
+            if check_count > 1 {
+                return (pin_defend_map, check_count);
+            }
             let attack_index = (board.w_king_index as i16 + direction) as u8;
             if board.squares[attack_index as usize] == BLACK | PAWN {
                 check_count += 1;
@@ -496,6 +499,9 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
         }
 
         for i in 0..board.b_knights {
+            if check_count > 1 {
+                return (pin_defend_map, check_count);
+            }
             let from_index = board.b_knight_indexes[i as usize];
             let attack_index =
                 (from_index as i16 - board.w_king_index as i16 + LOOKUP_OFFSET) as usize;
@@ -514,6 +520,9 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
             &mut check_count,
             &mut pinner,
         );
+        if check_count > 1 {
+            return (pin_defend_map, check_count);
+        }
 
         set_slider_pin_defend_map(
             board,
@@ -524,6 +533,9 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
             &mut check_count,
             &mut pinner,
         );
+        if check_count > 1 {
+            return (pin_defend_map, check_count);
+        }
 
         set_slider_pin_defend_map(
             board,
@@ -534,8 +546,14 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
             &mut check_count,
             &mut pinner,
         );
+        if check_count > 1 {
+            return (pin_defend_map, check_count);
+        }
     } else {
         for &direction in &PAWN_BLACK_DIRECTIONS[2..] {
+            if check_count > 1 {
+                return (pin_defend_map, check_count);
+            }
             let attack_index = (board.b_king_index as i16 + direction) as u8;
             if board.squares[attack_index as usize] == WHITE | PAWN {
                 check_count += 1;
@@ -548,6 +566,9 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
         }
 
         for i in 0..board.w_knights {
+            if check_count > 1 {
+                return (pin_defend_map, check_count);
+            }
             let from_index = board.w_knight_indexes[i as usize];
             let attack_index =
                 (from_index as i16 - board.b_king_index as i16 + LOOKUP_OFFSET) as usize;
@@ -566,6 +587,9 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
             &mut check_count,
             &mut pinner,
         );
+        if check_count > 1 {
+            return (pin_defend_map, check_count);
+        }
 
         set_slider_pin_defend_map(
             board,
@@ -576,6 +600,9 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
             &mut check_count,
             &mut pinner,
         );
+        if check_count > 1 {
+            return (pin_defend_map, check_count);
+        }
 
         set_slider_pin_defend_map(
             board,
@@ -586,6 +613,9 @@ fn get_pin_defend_map(board: &Board) -> ([u8; 192], u8) {
             &mut check_count,
             &mut pinner,
         );
+        if check_count > 1 {
+            return (pin_defend_map, check_count);
+        }
     }
 
     (pin_defend_map, check_count)
@@ -601,6 +631,9 @@ fn set_slider_pin_defend_map(
     pinner: &mut u8,
 ) {
     for &from_index in slider_indexes {
+        if *check_count > 1 {
+            return;
+        }
         let attack_index = (from_index as i16 - stm_king_index as i16 + LOOKUP_OFFSET) as usize;
         let attack_piece = SLIDER_ATTACK_LOOKUP[attack_index];
         if attack_piece == 0 || (slider_type != QUEEN && attack_piece != slider_type) {
