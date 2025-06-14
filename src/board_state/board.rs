@@ -218,14 +218,12 @@ impl Board {
         }
     }
 
-    pub fn unmake_move_str(&mut self, c_move_str: &str) {
+    pub fn unmake_last_move(&mut self) {
         if self.history_index == 0 {
             return;
         }
         let previous_move = self.move_history[self.history_index as usize - 1];
-        if previous_move.get_c_move_string(self.stm ^ OFF_BOARD_SQUARE) == c_move_str {
-            self.unmake_move(&previous_move);
-        }
+        self.unmake_move(&previous_move);
     }
 
     pub fn add_piece(&mut self, piece_type: u8, square_index: u8) {

@@ -39,8 +39,7 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
                 let move_str = parts.get(2).unwrap_or(&"");
                 board.make_move_str(move_str);
             } else if parts.len() > 1 && parts[1] == "unmake_move" {
-                let move_str = parts.get(2).unwrap_or(&"");
-                board.unmake_move_str(move_str);
+                board.unmake_last_move();
             }
             true
         }
