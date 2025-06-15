@@ -52,8 +52,7 @@ pub fn perft(board: &mut Board, depth: u64) -> u64 {
     for i in 0..c_move_list.count {
         let c_move = c_move_list.moves[i];
         board.make_move(&c_move);
-        let nodes = perft(board, depth - 1);
-        total_nodes += nodes;
+        total_nodes += perft(board, depth - 1);
         board.unmake_move(&c_move);
     }
 

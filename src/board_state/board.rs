@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use crate::board_state::{
     c_move::CMove,
     c_move_list::CMoveList,
@@ -53,6 +55,10 @@ pub struct Board {
 
 impl Board {
     pub fn new() -> Self {
+        let seed: u64 = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis() as u64;
         Board {
             stm: 0,
             squares: [0; 192],
@@ -93,7 +99,7 @@ impl Board {
                 promotion_piece: 0,
             }; 256],
             history_index: 0,
-            zobrist_hasher: ZobristHasher::new(),
+            zobrist_hasher: ZobristHasher::new(seed),
         }
     }
 
