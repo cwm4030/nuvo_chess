@@ -6,4 +6,6 @@ pub mod make_unmake_move;
 pub mod move_gen;
 pub mod perft;
 pub mod piece_type;
+pub mod rng;
 pub mod square_index;
+pub mod zobrist_hasher;

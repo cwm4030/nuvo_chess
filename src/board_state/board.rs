@@ -8,6 +8,7 @@ use crate::board_state::{
         WHITE, get_piece_string,
     },
     square_index::{ON_AND_OFF_BOARD_SQUARES, ON_BOARD_SQUARES, SQUARE_NAMES},
+    zobrist_hasher::ZobristHasher,
 };
 
 #[derive(Copy, Clone)]
@@ -47,6 +48,7 @@ pub struct Board {
     pub halfmove_history: [u8; 256],
     pub move_history: [CMove; 256],
     pub history_index: u8,
+    pub zobrist_hasher: ZobristHasher,
 }
 
 impl Board {
@@ -91,6 +93,7 @@ impl Board {
                 promotion_piece: 0,
             }; 256],
             history_index: 0,
+            zobrist_hasher: ZobristHasher::new(),
         }
     }
 
@@ -110,11 +113,13 @@ impl Board {
         };
         let castling_rights_string = get_castling_rights_string(self.castling_rights);
         let ep_string = SQUARE_NAMES[self.ep_index as usize];
+        let zobrist_hash = self.zobrist_hasher.get_zobrist_hash(self);
         println!("Side to move: {}", stm_string);
         println!("Castling rights: {}", castling_rights_string);
         println!("En passant square: {}", ep_string);
         println!("Halfmove clock: {}", self.halfmove);
         println!("Fullmove number: {}", self.fullmove);
+        println!("Zobrist hash: {}", zobrist_hash);
         for rank in 0..8 {
             print!(" {} ", 8 - rank);
             for file in 0..8 {
@@ -155,11 +160,13 @@ impl Board {
         };
         let castling_rights_string = get_castling_rights_string(self.castling_rights);
         let ep_string = SQUARE_NAMES[self.ep_index as usize];
+        let zobrist_hash = self.zobrist_hasher.get_zobrist_hash(self);
         println!("Side to move: {}", stm_string);
         println!("Castling rights: {}", castling_rights_string);
         println!("En passant square: {}", ep_string);
         println!("Halfmove clock: {}", self.halfmove);
         println!("Fullmove number: {}", self.fullmove);
+        println!("Zobrist hash: {}", zobrist_hash);
         println!("   --------------------------");
         for rank in 0..8 {
             print!(" {} |", 8 - rank);
