@@ -2,6 +2,7 @@ pub mod board;
 pub mod c_move;
 pub mod c_move_list;
 pub mod castling;
+pub mod evaluation;
 pub mod make_unmake_move;
 pub mod move_gen;
 pub mod perft;
