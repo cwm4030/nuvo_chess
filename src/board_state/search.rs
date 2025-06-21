@@ -3,7 +3,7 @@ use crate::board_state::{
     c_move_list::CMoveList,
     evaluation::evaluate_board,
     move_gen::{generate_moves, is_in_check},
-    piece_type::WHITE,
+    piece_type::OFF_BOARD_SQUARE,
     search_list::SearchList,
 };
 
@@ -13,34 +13,24 @@ pub fn negamax_search(board: &mut Board, depth: usize) -> SearchList {
     let mut search_list = SearchList::new();
     search_list.set_from_c_move_list(&c_move_list);
 
-    let mut alpha = if board.stm == WHITE {
-        -10000.0
-    } else {
-        10000.0
-    };
-    let beta = if board.stm == WHITE {
-        10000.0
-    } else {
-        -10000.0
-    };
     for d in 1..depth + 1 {
         search_list.total_nodes = 0;
+        let mut alpha = -10000.0;
+        let beta = 10000.0;
         for i in 0..search_list.count {
             let c_move = search_list.moves[i];
             board.make_move(&c_move);
             let (mut score, node_count) = negamax(board, d - 1, -beta, -alpha, 0);
             score = -score;
+            alpha = alpha.max(score);
             board.unmake_move(&c_move);
-            if score > alpha {
-                alpha = score;
-            }
             search_list.moves[i] = c_move;
             search_list.scores[i] = score;
             search_list.nodes[i] = node_count;
             search_list.total_nodes += node_count;
             search_list.count = i + 1;
         }
-        search_list.sort_by_score();
+        search_list.sort_by_score(board.stm ^ OFF_BOARD_SQUARE);
     }
 
     search_list
@@ -73,19 +63,19 @@ fn negamax(
     }
 
     let mut total_nodes = nodes;
-    let mut score = -10000.0;
+    let mut score = -10000.0_f32;
     for i in 0..c_move_list.count {
         let c_move = c_move_list.moves[i];
         board.make_move(&c_move);
-        let (negamax_score, negamax_nodes) = negamax(board, depth - 1, -beta, -alpha, total_nodes);
-        score = -negamax_score;
+        let (mut negamax_score, negamax_nodes) =
+            negamax(board, depth - 1, -beta, -alpha, total_nodes);
+        negamax_score = -negamax_score;
+        score = score.max(negamax_score);
+        alpha = alpha.max(score);
         total_nodes = negamax_nodes + 1;
         board.unmake_move(&c_move);
-        if score >= beta {
-            return (beta, total_nodes);
-        }
-        if score > alpha {
-            alpha = score;
+        if alpha >= beta {
+            break;
         }
     }
 
