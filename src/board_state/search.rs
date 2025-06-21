@@ -3,7 +3,7 @@ use crate::board_state::{
     c_move_list::CMoveList,
     evaluation::evaluate_board,
     move_gen::{generate_moves, is_in_check},
-    piece_type::OFF_BOARD_SQUARE,
+    piece_type::{OFF_BOARD_SQUARE, WHITE},
     search_list::SearchList,
 };
 
@@ -59,7 +59,12 @@ fn negamax(
     } else if board.is_possible_three_move_repetition() {
         return (0.0, nodes + 1);
     } else if depth == 0 {
-        return (evaluate_board(board, c_move_list.count), nodes + 1);
+        let score = evaluate_board(board, c_move_list.count);
+        return if board.stm == WHITE {
+            (score, nodes + 1)
+        } else {
+            (-score, nodes + 1)
+        };
     }
 
     let mut total_nodes = nodes;
