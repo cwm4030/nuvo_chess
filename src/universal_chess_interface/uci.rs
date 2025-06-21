@@ -1,10 +1,12 @@
 use std::io::Write;
+use std::time::Instant;
 
 use crate::board_state::board::Board;
 use crate::board_state::c_move_list::CMoveList;
 use crate::board_state::evaluation::evaluate_board;
 use crate::board_state::move_gen::generate_moves;
 use crate::board_state::perft;
+use crate::board_state::search::negamax_search;
 
 pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
     let parts: Vec<&str> = command.split_whitespace().collect();
@@ -36,7 +38,7 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
             } else if parts.len() > 1 && parts[1] == "print_ascii" {
                 board.print_ascii_board();
             } else if parts.len() > 1 && parts[1] == "perft" {
-                let depth = parts.get(2).unwrap_or(&"1").parse().unwrap_or(1) as u64;
+                let depth = parts.get(2).unwrap_or(&"1").parse().unwrap_or(1) as usize;
                 perft::print_perft(board, depth);
             } else if parts.len() > 1 && parts[1] == "make_move" {
                 let move_str = parts.get(2).unwrap_or(&"");
@@ -46,8 +48,33 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
             } else if parts.len() > 1 && parts[1] == "evaluate" {
                 let mut c_move_list = CMoveList::new();
                 generate_moves(board, &mut c_move_list);
-                let score = evaluate_board(board, c_move_list.count as u16);
+                let score = evaluate_board(board, c_move_list.count);
                 println!("Score: {}", score);
+                println!();
+            }
+            true
+        }
+        "go" => {
+            if parts.len() > 1 && parts[1] == "depth" {
+                let depth = parts.get(2).unwrap_or(&"1").parse().unwrap_or(1);
+                let now = Instant::now();
+                let search_list = negamax_search(board, depth);
+                let elapsed = now.elapsed();
+                let nps = search_list.total_nodes as f64 / elapsed.as_secs_f64();
+                for i in 0..search_list.count {
+                    let c_move = search_list.moves[i];
+                    let score = search_list.scores[i];
+                    let node_count = search_list.nodes[i];
+                    println!(
+                        "{}: {:.2}, {} nodes",
+                        c_move.get_c_move_string(board.stm),
+                        score,
+                        node_count
+                    );
+                }
+                println!("Total nodes: {}", search_list.total_nodes);
+                println!("Time taken: {:.2} seconds", elapsed.as_secs_f64());
+                println!("Nodes per second: {:.2}", nps);
                 println!();
             }
             true

@@ -49,6 +49,7 @@ pub struct Board {
     pub castling_rights_history: [u8; 256],
     pub halfmove_history: [u8; 256],
     pub move_history: [CMove; 256],
+    pub zobrist_hash_history: [u64; 256],
     pub history_index: u8,
     pub zobrist_hasher: ZobristHasher,
 }
@@ -98,6 +99,7 @@ impl Board {
                 to_index: 0,
                 promotion_piece: 0,
             }; 256],
+            zobrist_hash_history: [0; 256],
             history_index: 0,
             zobrist_hasher: ZobristHasher::new(seed),
         }
@@ -399,6 +401,17 @@ impl Board {
         if updated_square_index != square_index {
             self.piece_indexes[updated_square_index as usize] = piece_index;
         }
+    }
+
+    pub fn is_possible_three_move_repetition(&mut self) -> bool {
+        let current_zobrist_hash = self.zobrist_hasher.get_zobrist_hash(self);
+        for i in 0..self.history_index {
+            if self.zobrist_hash_history[i as usize] == current_zobrist_hash {
+                return true;
+            }
+        }
+        self.zobrist_hash_history[self.history_index as usize] = current_zobrist_hash;
+        false
     }
 
     fn clear_squares_and_pieces(&mut self) {

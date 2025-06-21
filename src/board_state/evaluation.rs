@@ -1,8 +1,11 @@
 use crate::board_state::{
-    board::Board, c_move_list::CMoveList, move_gen::generate_moves, piece_type::OFF_BOARD_SQUARE,
+    board::Board,
+    c_move_list::CMoveList,
+    move_gen::generate_moves,
+    piece_type::{OFF_BOARD_SQUARE, WHITE},
 };
 
-pub fn evaluate_board(board: &mut Board, stm_moves: u16) -> f32 {
+pub fn evaluate_board(board: &mut Board, stm_moves: usize) -> f32 {
     let mut score = 0.0;
 
     score += (board.w_queens - board.b_queens) as f32 * 9.0;
@@ -17,5 +20,5 @@ pub fn evaluate_board(board: &mut Board, stm_moves: u16) -> f32 {
     board.stm ^= OFF_BOARD_SQUARE;
     score += (stm_moves as f32 - c_move_list.count as f32) * 0.1;
 
-    score
+    if board.stm == WHITE { score } else { -score }
 }

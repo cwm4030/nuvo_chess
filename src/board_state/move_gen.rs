@@ -71,6 +71,15 @@ const ROOK_DIRECTIONS: [i16; 4] = [-16, -1, 1, 16];
 const QUEEN_DIRECTIONS: [i16; 8] = [-17, -16, -15, -1, 1, 15, 16, 17];
 const KING_DIRECTIONS: [i16; 8] = [-17, -16, -15, -1, 1, 15, 16, 17];
 
+pub fn is_in_check(board: &Board) -> bool {
+    let king_index = if board.stm == WHITE {
+        board.w_king_index
+    } else {
+        board.b_king_index
+    };
+    is_square_attacked(board, king_index)
+}
+
 pub fn generate_moves(board: &Board, c_move_list: &mut CMoveList) {
     c_move_list.clear();
     let (pin_defend_map, check_count) = get_pin_defend_map(board);

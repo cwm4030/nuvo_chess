@@ -8,5 +8,7 @@ pub mod move_gen;
 pub mod perft;
 pub mod piece_type;
 pub mod rng;
+pub mod search;
+pub mod search_list;
 pub mod square_index;
 pub mod zobrist_hasher;
