@@ -89,6 +89,6 @@ fn negamax(
             break;
         }
     }
-    
+
     best_score
 }
