@@ -2,7 +2,6 @@ use std::io::Write;
 use std::time::Instant;
 
 use crate::board_state::board::Board;
-use crate::board_state::c_move_list::CMoveList;
 use crate::board_state::evaluation::evaluate_board;
 use crate::board_state::move_gen::generate_moves;
 use crate::board_state::perft;
@@ -46,9 +45,8 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
             } else if parts.len() > 1 && parts[1] == "unmake_move" {
                 board.unmake_last_move();
             } else if parts.len() > 1 && parts[1] == "evaluate" {
-                let mut c_move_list = CMoveList::new();
-                generate_moves(board, &mut c_move_list);
-                let score = evaluate_board(board, c_move_list.count);
+                let mi = generate_moves(board, false);
+                let score = evaluate_board(board, mi.c_move_list.count);
                 println!("Score: {}", score);
                 println!();
             }

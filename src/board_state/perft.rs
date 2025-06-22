@@ -1,8 +1,6 @@
 use std::time::Instant;
 
-use crate::board_state::{
-    board::Board, c_move_list::CMoveList, move_gen::generate_moves, piece_type::OFF_BOARD_SQUARE,
-};
+use crate::board_state::{board::Board, move_gen::generate_moves, piece_type::OFF_BOARD_SQUARE};
 
 pub fn print_perft(board: &mut Board, mut depth: usize) {
     if depth == 0 {
@@ -10,12 +8,11 @@ pub fn print_perft(board: &mut Board, mut depth: usize) {
     }
 
     let now = Instant::now();
-    let mut c_move_list = CMoveList::new();
-    generate_moves(board, &mut c_move_list);
+    let mi = generate_moves(board, false);
 
     let mut total_nodes = 0;
-    for i in 0..c_move_list.count {
-        let c_move = c_move_list.moves[i];
+    for i in 0..mi.c_move_list.count {
+        let c_move = mi.c_move_list.moves[i];
         board.make_move(&c_move);
         let nodes = perft(board, depth - 1);
         println!(
@@ -40,17 +37,16 @@ pub fn print_perft(board: &mut Board, mut depth: usize) {
 }
 
 pub fn perft(board: &mut Board, depth: usize) -> usize {
-    let mut c_move_list = CMoveList::new();
-    generate_moves(board, &mut c_move_list);
+    let mi = generate_moves(board, false);
     if depth == 1 {
-        return c_move_list.count;
+        return mi.c_move_list.count;
     } else if depth == 0 {
         return 1;
     }
 
     let mut total_nodes = 0;
-    for i in 0..c_move_list.count {
-        let c_move = c_move_list.moves[i];
+    for i in 0..mi.c_move_list.count {
+        let c_move = mi.c_move_list.moves[i];
         board.make_move(&c_move);
         total_nodes += perft(board, depth - 1);
         board.unmake_move(&c_move);

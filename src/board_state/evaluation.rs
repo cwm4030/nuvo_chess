@@ -1,6 +1,4 @@
-use crate::board_state::{
-    board::Board, c_move_list::CMoveList, move_gen::generate_moves, piece_type::OFF_BOARD_SQUARE,
-};
+use crate::board_state::{board::Board, move_gen::generate_moves, piece_type::OFF_BOARD_SQUARE};
 
 pub fn evaluate_board(board: &mut Board, stm_moves: usize) -> i16 {
     let mut score = 0_i16;
@@ -11,11 +9,10 @@ pub fn evaluate_board(board: &mut Board, stm_moves: usize) -> i16 {
     score += (board.w_knights as i16 - board.b_knights as i16) * 300;
     score += (board.w_pawns as i16 - board.b_pawns as i16) * 100;
 
-    let mut c_move_list = CMoveList::new();
     board.stm ^= OFF_BOARD_SQUARE;
-    generate_moves(board, &mut c_move_list);
+    let mi = generate_moves(board, false);
     board.stm ^= OFF_BOARD_SQUARE;
-    score += (stm_moves as i16 - c_move_list.count as i16) * 10;
+    score += (stm_moves as i16 - mi.c_move_list.count as i16) * 10;
 
     score
 }

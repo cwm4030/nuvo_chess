@@ -2,7 +2,6 @@ use std::time::SystemTime;
 
 use crate::board_state::{
     c_move::CMove,
-    c_move_list::CMoveList,
     castling::{BLACK_KING, BLACK_QUEEN, WHITE_KING, WHITE_QUEEN, get_castling_rights_string},
     move_gen::generate_moves,
     piece_type::{
@@ -98,6 +97,7 @@ impl Board {
                 from_index: 0,
                 to_index: 0,
                 promotion_piece: 0,
+                score: 0,
             }; 256],
             zobrist_hash_history: [0; 256],
             history_index: 0,
@@ -222,10 +222,9 @@ impl Board {
     }
 
     pub fn make_move_str(&mut self, c_move_str: &str) {
-        let mut c_move_list = CMoveList::new();
-        generate_moves(self, &mut c_move_list);
-        for i in 0..c_move_list.count {
-            let c_move = c_move_list.moves[i];
+        let mi = generate_moves(self, false);
+        for i in 0..mi.c_move_list.count {
+            let c_move = mi.c_move_list.moves[i];
             if c_move.get_c_move_string(self.stm) == c_move_str {
                 self.make_move(&c_move);
                 return;
