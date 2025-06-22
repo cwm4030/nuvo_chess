@@ -9,7 +9,7 @@ pub fn negamax_search(board: &mut Board, depth: usize) -> SearchList {
     let mi = generate_moves(board, true);
     let mut search_list = SearchList::new();
     search_list.set_from_c_move_list(&mi.c_move_list);
-    search_list.sort_by_move_score();
+    search_list.sort_by_move_score(&mi.move_scores);
 
     for d in 1..depth + 1 {
         search_list.total_nodes = 0;
@@ -72,7 +72,7 @@ fn negamax(
     }
 
     let mut best_score = i16::MIN;
-    mi.c_move_list.sort_by_score();
+    mi.sort_by_score();
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
         board.make_move(&c_move);

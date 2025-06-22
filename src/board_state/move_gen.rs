@@ -83,12 +83,30 @@ const ATTACKER_VICTIM_SCORES: [[u16; 7]; 7] = [
 
 pub struct MoveInformation {
     pub c_move_list: CMoveList,
+    pub move_scores: [u16; 256],
     pub pin_defend_map: [u8; 192],
     pub check_count: u8,
 }
 
+impl MoveInformation {
+    pub fn new() -> Self {
+        MoveInformation {
+            c_move_list: CMoveList::new(),
+            move_scores: [0; 256],
+            pin_defend_map: [0; 192],
+            check_count: 0,
+        }
+    }
+
+    pub fn sort_by_score(&mut self) {
+        self.c_move_list.sort_by_score(&self.move_scores);
+    }
+}
+
 pub fn generate_moves(board: &Board, apply_score: bool) -> MoveInformation {
-    let mut mi = get_pin_defend_map(board);
+    let mut mi = MoveInformation::new();
+    set_pin_defend_map(&mut mi, board);
+
     if board.stm == WHITE {
         if mi.check_count <= 1 {
             for i in 0..board.w_pawns {
@@ -346,7 +364,7 @@ fn generate_castle_moves(board: &Board, mi: &mut MoveInformation) {
             && !is_square_attacked(board, F1)
             && !is_square_attacked(board, G1)
         {
-            mi.c_move_list.add_move(board.w_king_index, G1, 0, 0);
+            mi.c_move_list.add_move(board.w_king_index, G1, 0);
         }
 
         if board.castling_rights & WHITE_QUEEN != 0
@@ -356,7 +374,7 @@ fn generate_castle_moves(board: &Board, mi: &mut MoveInformation) {
             && !is_square_attacked(board, D1)
             && !is_square_attacked(board, C1)
         {
-            mi.c_move_list.add_move(board.w_king_index, C1, 0, 0);
+            mi.c_move_list.add_move(board.w_king_index, C1, 0);
         }
     } else {
         if board.castling_rights & BLACK_KING != 0
@@ -365,7 +383,7 @@ fn generate_castle_moves(board: &Board, mi: &mut MoveInformation) {
             && !is_square_attacked(board, F8)
             && !is_square_attacked(board, G8)
         {
-            mi.c_move_list.add_move(board.b_king_index, G8, 0, 0);
+            mi.c_move_list.add_move(board.b_king_index, G8, 0);
         }
 
         if board.castling_rights & BLACK_QUEEN != 0
@@ -375,7 +393,7 @@ fn generate_castle_moves(board: &Board, mi: &mut MoveInformation) {
             && !is_square_attacked(board, D8)
             && !is_square_attacked(board, C8)
         {
-            mi.c_move_list.add_move(board.b_king_index, C8, 0, 0);
+            mi.c_move_list.add_move(board.b_king_index, C8, 0);
         }
     }
 }
@@ -415,28 +433,23 @@ fn add_legal_move(
         return;
     }
 
-    let score = if apply_score {
-        ATTACKER_VICTIM_SCORES[(from_square & PIECE_MASK) as usize]
-            [(to_square & PIECE_MASK) as usize]
-    } else {
-        0
-    };
     mi.c_move_list
-        .add_move(from_index, to_index, promotion_piece, score);
+        .add_move(from_index, to_index, promotion_piece);
+    if apply_score {
+        let attack_piece = from_square & PIECE_MASK;
+        let victim_piece = to_square & PIECE_MASK;
+        let score = ATTACKER_VICTIM_SCORES[attack_piece as usize][victim_piece as usize];
+        mi.move_scores[mi.c_move_list.count - 1] = score
+    }
 }
 
-fn get_pin_defend_map(board: &Board) -> MoveInformation {
-    let mut mi = MoveInformation {
-        c_move_list: CMoveList::new(),
-        pin_defend_map: [0; 192],
-        check_count: 0,
-    };
+fn set_pin_defend_map(mi: &mut MoveInformation, board: &Board) {
     let mut pinner: u8 = 1;
 
     if board.stm == WHITE {
         for &direction in &PAWN_WHITE_DIRECTIONS[2..] {
             if mi.check_count > 1 {
-                return mi;
+                return;
             }
             let attack_index = (board.w_king_index as i16 + direction) as u8;
             if board.squares[attack_index as usize] == BLACK | PAWN {
@@ -451,7 +464,7 @@ fn get_pin_defend_map(board: &Board) -> MoveInformation {
 
         for i in 0..board.b_knights {
             if mi.check_count > 1 {
-                return mi;
+                return;
             }
             let from_index = board.b_knight_indexes[i as usize];
             let attack_index =
@@ -463,7 +476,7 @@ fn get_pin_defend_map(board: &Board) -> MoveInformation {
         }
 
         set_slider_pin_defend_map(
-            &mut mi,
+            mi,
             board,
             &board.b_bishop_indexes[..board.b_bishops as usize],
             board.w_king_index,
@@ -471,11 +484,11 @@ fn get_pin_defend_map(board: &Board) -> MoveInformation {
             &mut pinner,
         );
         if mi.check_count > 1 {
-            return mi;
+            return;
         }
 
         set_slider_pin_defend_map(
-            &mut mi,
+            mi,
             board,
             &board.b_rook_indexes[..board.b_rooks as usize],
             board.w_king_index,
@@ -483,24 +496,21 @@ fn get_pin_defend_map(board: &Board) -> MoveInformation {
             &mut pinner,
         );
         if mi.check_count > 1 {
-            return mi;
+            return;
         }
 
         set_slider_pin_defend_map(
-            &mut mi,
+            mi,
             board,
             &board.b_queen_indexes[..board.b_queens as usize],
             board.w_king_index,
             QUEEN,
             &mut pinner,
         );
-        if mi.check_count > 1 {
-            return mi;
-        }
     } else {
         for &direction in &PAWN_BLACK_DIRECTIONS[2..] {
             if mi.check_count > 1 {
-                return mi;
+                return;
             }
             let attack_index = (board.b_king_index as i16 + direction) as u8;
             if board.squares[attack_index as usize] == WHITE | PAWN {
@@ -515,7 +525,7 @@ fn get_pin_defend_map(board: &Board) -> MoveInformation {
 
         for i in 0..board.w_knights {
             if mi.check_count > 1 {
-                return mi;
+                return;
             }
             let from_index = board.w_knight_indexes[i as usize];
             let attack_index =
@@ -527,7 +537,7 @@ fn get_pin_defend_map(board: &Board) -> MoveInformation {
         }
 
         set_slider_pin_defend_map(
-            &mut mi,
+            mi,
             board,
             &board.w_bishop_indexes[..board.w_bishops as usize],
             board.b_king_index,
@@ -535,11 +545,11 @@ fn get_pin_defend_map(board: &Board) -> MoveInformation {
             &mut pinner,
         );
         if mi.check_count > 1 {
-            return mi;
+            return;
         }
 
         set_slider_pin_defend_map(
-            &mut mi,
+            mi,
             board,
             &board.w_rook_indexes[..board.w_rooks as usize],
             board.b_king_index,
@@ -547,23 +557,18 @@ fn get_pin_defend_map(board: &Board) -> MoveInformation {
             &mut pinner,
         );
         if mi.check_count > 1 {
-            return mi;
+            return;
         }
 
         set_slider_pin_defend_map(
-            &mut mi,
+            mi,
             board,
             &board.w_queen_indexes[..board.w_queens as usize],
             board.b_king_index,
             QUEEN,
             &mut pinner,
         );
-        if mi.check_count > 1 {
-            return mi;
-        }
     }
-
-    mi
 }
 
 fn set_slider_pin_defend_map(

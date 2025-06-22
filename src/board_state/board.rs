@@ -93,12 +93,7 @@ impl Board {
             ep_index_history: [0; 256],
             castling_rights_history: [0; 256],
             halfmove_history: [0; 256],
-            move_history: [CMove {
-                from_index: 0,
-                to_index: 0,
-                promotion_piece: 0,
-                score: 0,
-            }; 256],
+            move_history: [CMove::new(); 256],
             zobrist_hash_history: [0; 256],
             history_index: 0,
             zobrist_hasher: ZobristHasher::new(seed),

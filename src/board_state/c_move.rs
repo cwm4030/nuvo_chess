@@ -8,10 +8,17 @@ pub struct CMove {
     pub from_index: u8,
     pub to_index: u8,
     pub promotion_piece: u8,
-    pub score: u16,
 }
 
 impl CMove {
+    pub fn new() -> Self {
+        CMove {
+            from_index: 0,
+            to_index: 0,
+            promotion_piece: 0,
+        }
+    }
+
     pub fn get_c_move_string(&self, stm: u8) -> String {
         let from_square = SQUARE_NAMES[self.from_index as usize];
         let to_square = SQUARE_NAMES[self.to_index as usize];
