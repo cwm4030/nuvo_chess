@@ -3,7 +3,7 @@ use crate::board_state::{
     c_move_list::CMoveList,
     evaluation::evaluate_board,
     move_gen::{generate_moves, is_in_check},
-    piece_type::{OFF_BOARD_SQUARE, WHITE},
+    piece_type::WHITE,
     search_list::SearchList,
 };
 
@@ -15,22 +15,21 @@ pub fn negamax_search(board: &mut Board, depth: usize) -> SearchList {
 
     for d in 1..depth + 1 {
         search_list.total_nodes = 0;
-        let mut alpha = -10000.0;
-        let beta = 10000.0;
         for i in 0..search_list.count {
             let c_move = search_list.moves[i];
             board.make_move(&c_move);
-            let (mut score, node_count) = negamax(board, d - 1, -beta, -alpha, 0);
-            score = -score;
-            alpha = alpha.max(score);
+            let score = -negamax(board, d - 1, i16::MIN, i16::MAX, &mut search_list);
             board.unmake_move(&c_move);
+
             search_list.moves[i] = c_move;
             search_list.scores[i] = score;
-            search_list.nodes[i] = node_count;
-            search_list.total_nodes += node_count;
+            search_list.nodes[i] = search_list.current_nodes;
             search_list.count = i + 1;
+
+            search_list.total_nodes += search_list.current_nodes;
+            search_list.current_nodes = 0;
         }
-        search_list.sort_by_score(board.stm ^ OFF_BOARD_SQUARE);
+        search_list.sort_by_score();
     }
 
     search_list
@@ -39,50 +38,42 @@ pub fn negamax_search(board: &mut Board, depth: usize) -> SearchList {
 fn negamax(
     board: &mut Board,
     depth: usize,
-    mut alpha: f32,
-    beta: f32,
-    nodes: usize,
-) -> (f32, usize) {
+    mut alpha: i16,
+    beta: i16,
+    search_list: &mut SearchList,
+) -> i16 {
     if board.halfmove >= 50 {
-        return (0.0, nodes + 1);
+        search_list.current_nodes += 1;
+        return 0;
     }
 
     let mut c_move_list = CMoveList::new();
     generate_moves(board, &mut c_move_list);
 
     if c_move_list.count == 0 {
-        return if is_in_check(board) {
-            (10000.0, nodes + 1)
-        } else {
-            (0.0, nodes + 1)
-        };
+        search_list.current_nodes += 1;
+        return if is_in_check(board) { i16::MAX } else { 0 };
     } else if board.is_possible_three_move_repetition() {
-        return (0.0, nodes + 1);
+        search_list.current_nodes += 1;
+        return 0;
     } else if depth == 0 {
+        search_list.current_nodes += 1;
         let score = evaluate_board(board, c_move_list.count);
-        return if board.stm == WHITE {
-            (score, nodes + 1)
-        } else {
-            (-score, nodes + 1)
-        };
+        return if board.stm == WHITE { score } else { -score };
     }
 
-    let mut total_nodes = nodes;
-    let mut score = -10000.0_f32;
+    let mut score = i16::MIN;
     for i in 0..c_move_list.count {
         let c_move = c_move_list.moves[i];
         board.make_move(&c_move);
-        let (mut negamax_score, negamax_nodes) =
-            negamax(board, depth - 1, -beta, -alpha, total_nodes);
-        negamax_score = -negamax_score;
+        let negamax_score = -negamax(board, depth - 1, -beta, -alpha, search_list);
         score = score.max(negamax_score);
         alpha = alpha.max(score);
-        total_nodes = negamax_nodes + 1;
         board.unmake_move(&c_move);
         if alpha >= beta {
             break;
         }
     }
 
-    (score, total_nodes)
+    score
 }

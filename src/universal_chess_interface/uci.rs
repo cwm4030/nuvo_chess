@@ -63,13 +63,13 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
                 let nps = search_list.total_nodes as f64 / elapsed.as_secs_f64();
                 for i in 0..search_list.count {
                     let c_move = search_list.moves[i];
-                    let score = search_list.scores[i];
-                    let node_count = search_list.nodes[i];
+                    let score = search_list.scores[i] as f32 / 100.0_f32;
+                    let nodes = search_list.nodes[i];
                     println!(
                         "{}: {:.2}, {} nodes",
                         c_move.get_c_move_string(board.stm),
                         score,
-                        node_count
+                        nodes
                     );
                 }
                 println!("Total nodes: {}", search_list.total_nodes);
