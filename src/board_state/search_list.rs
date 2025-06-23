@@ -7,6 +7,8 @@ pub struct SearchList {
     pub current_nodes: usize,
     pub total_nodes: usize,
     pub count: usize,
+    pub pv_moves: [CMove; 256],
+    pub pv_count: usize,
 }
 
 impl SearchList {
@@ -18,6 +20,8 @@ impl SearchList {
             current_nodes: 0,
             total_nodes: 0,
             count: 0,
+            pv_moves: [CMove::new(); 256],
+            pv_count: 0,
         }
     }
 
@@ -39,8 +43,11 @@ impl SearchList {
             sorted_search_list.scores[sorted_index] = self.scores[previous_index];
             sorted_search_list.nodes[sorted_index] = self.nodes[previous_index];
         }
+        sorted_search_list.current_nodes = self.current_nodes;
         sorted_search_list.total_nodes = self.total_nodes;
         sorted_search_list.count = self.count;
+        sorted_search_list.pv_moves = self.pv_moves;
+        sorted_search_list.pv_count = self.pv_count;
 
         *self = sorted_search_list;
     }
@@ -49,11 +56,17 @@ impl SearchList {
         let mut indices: Vec<usize> = (0..self.count).collect();
         indices.sort_by(|&a, &b| scores[b].cmp(&scores[a]));
 
-        let mut sorted_moves = [CMove::new(); 256];
+        let mut sorted_search_list = Self::new();
         for (sorted_index, &previous_index) in indices.iter().enumerate() {
-            sorted_moves[sorted_index] = self.moves[previous_index];
+            sorted_search_list.moves[sorted_index] = self.moves[previous_index];
+            sorted_search_list.scores[sorted_index] = scores[previous_index] as i16;
+            sorted_search_list.nodes[sorted_index] = self.nodes[previous_index];
         }
-        self.moves = sorted_moves;
-        self.count = indices.len();
+        sorted_search_list.total_nodes = self.total_nodes;
+        sorted_search_list.count = self.count;
+        sorted_search_list.pv_moves = self.pv_moves;
+        sorted_search_list.pv_count = self.pv_count;
+
+        *self = sorted_search_list;
     }
 }

@@ -1,8 +1,8 @@
 const MATE: i16 = i16::MAX - 1;
 
 use crate::board_state::{
-    board::Board, evaluation::evaluate_board, move_gen::generate_moves, piece_type::WHITE,
-    search_list::SearchList,
+    board::Board, c_move::CMove, evaluation::evaluate_board, move_gen::generate_moves,
+    piece_type::WHITE, search_list::SearchList,
 };
 
 pub fn negamax_search(board: &mut Board, depth: usize) -> SearchList {
@@ -13,18 +13,26 @@ pub fn negamax_search(board: &mut Board, depth: usize) -> SearchList {
 
     for d in 1..depth + 1 {
         search_list.total_nodes = 0;
+        search_list.pv_moves = [CMove::new(); 256];
+        search_list.pv_count = 0;
         let mut alpha = i16::MIN;
         let beta = i16::MAX;
         let mut best_score = i16::MIN;
+        let mut pv_moves = [CMove::new(); 256];
+        let mut pv_count = 0;
         for i in 0..search_list.count {
             let c_move = search_list.moves[i];
             board.make_move(&c_move);
-            let score = -negamax(board, d - 1, -beta, -alpha, &mut search_list);
+            let score = -negamax(board, d - 1, -beta, -alpha, &mut search_list, 1);
             board.unmake_move(&c_move);
             if score > best_score {
                 best_score = score;
+                pv_moves = search_list.pv_moves;
+                pv_count = search_list.pv_count;
                 if score > alpha {
                     alpha = score;
+                    pv_moves[0] = c_move;
+                    pv_count = pv_count.max(1);
                 }
             }
             if score >= beta {
@@ -40,6 +48,8 @@ pub fn negamax_search(board: &mut Board, depth: usize) -> SearchList {
             search_list.current_nodes = 0;
         }
         search_list.sort_by_search_score();
+        search_list.pv_moves = pv_moves;
+        search_list.pv_count = pv_count;
     }
 
     search_list
@@ -51,6 +61,7 @@ fn negamax(
     mut alpha: i16,
     beta: i16,
     search_list: &mut SearchList,
+    pv_index: usize,
 ) -> i16 {
     if board.halfmove >= 50 {
         search_list.current_nodes += 1;
@@ -76,13 +87,15 @@ fn negamax(
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
         board.make_move(&c_move);
-        let score = -negamax(board, depth - 1, -beta, -alpha, search_list);
+        let score = -negamax(board, depth - 1, -beta, -alpha, search_list, pv_index + 1);
         board.unmake_move(&c_move);
 
         if score > best_score {
             best_score = score;
             if score > alpha {
                 alpha = score;
+                search_list.pv_moves[pv_index] = c_move;
+                search_list.pv_count = pv_index + 1;
             }
         }
         if score >= beta {
