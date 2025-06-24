@@ -1,4 +1,4 @@
-use crate::board_state::{c_move::CMove, c_move_list::CMoveList};
+use crate::board_state::{c_move::CMove, c_move_list::CMoveList, piece_type::WHITE};
 
 pub struct SearchList {
     pub moves: [CMove; 256],
@@ -29,9 +29,12 @@ impl SearchList {
         }
     }
 
-    pub fn sort_by_search_score(&mut self) {
+    pub fn sort_by_search_score(&mut self, stm: u8) {
         let mut indices: Vec<usize> = (0..self.count).collect();
-        indices.sort_by(|&a, &b| self.scores[b].cmp(&self.scores[a]));
+        match stm {
+            WHITE => indices.sort_by(|&a, &b| self.scores[b].cmp(&self.scores[a])),
+            _ => indices.sort_by(|&a, &b| self.scores[a].cmp(&self.scores[b]))
+        }
 
         let mut sorted_search_list = Self::new();
         for (sorted_index, &previous_index) in indices.iter().enumerate() {

@@ -45,7 +45,7 @@ pub fn alpha_beta_search(board: &mut Board, depth: usize) -> SearchList {
                 search_list.current_nodes = 0;
             }
         }
-        search_list.sort_by_search_score();
+        search_list.sort_by_search_score(board.stm);
     }
 
     search_list
