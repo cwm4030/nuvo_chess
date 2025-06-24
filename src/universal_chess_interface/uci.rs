@@ -5,7 +5,8 @@ use crate::board_state::board::Board;
 use crate::board_state::evaluation::evaluate_board;
 use crate::board_state::move_gen::generate_moves;
 use crate::board_state::perft;
-use crate::board_state::search::negamax_search;
+use crate::board_state::piece_type::WHITE;
+use crate::board_state::search::alpha_beta_search;
 
 pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
     let parts: Vec<&str> = command.split_whitespace().collect();
@@ -46,8 +47,9 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
                 board.unmake_last_move();
             } else if parts.len() > 1 && parts[1] == "evaluate" {
                 let mi = generate_moves(board, false);
-                let score = evaluate_board(board, mi.c_move_list.count);
-                println!("Score: {}", score);
+                let mut score = evaluate_board(board, mi.c_move_list.count);
+                score = if board.stm == WHITE { score } else { -score };
+                println!("Score: {:.2}", score as f32 / 100.0_f32);
                 println!();
             }
             true
@@ -56,14 +58,9 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
             if parts.len() > 1 && parts[1] == "depth" {
                 let depth = parts.get(2).unwrap_or(&"1").parse().unwrap_or(1);
                 let now = Instant::now();
-                let search_list = negamax_search(board, depth);
+                let search_list = alpha_beta_search(board, depth);
                 let elapsed = now.elapsed();
                 let nps = search_list.total_nodes as f64 / elapsed.as_secs_f64();
-                let pv_moves = search_list.pv_moves.iter().take(search_list.pv_count);
-                let pv_string: String = pv_moves
-                    .map(|c_move| c_move.get_c_move_string(board.stm))
-                    .collect::<Vec<String>>()
-                    .join(" ");
                 for i in 0..search_list.count {
                     let c_move = search_list.moves[i];
                     let score = search_list.scores[i] as f32 / 100.0_f32;
@@ -78,7 +75,6 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
                 println!("Total nodes: {}", search_list.total_nodes);
                 println!("Time taken: {:.2} seconds", elapsed.as_secs_f64());
                 println!("Nodes per second: {:.2}", nps);
-                println!("PV: {}", pv_string);
                 println!();
             }
             true
