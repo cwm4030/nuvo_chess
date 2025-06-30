@@ -12,38 +12,38 @@ pub fn alpha_beta_search(board: &mut Board, depth: usize) -> SearchList {
     search_list.sort_by_move_score(&mi.move_scores);
 
     for d in 1..depth + 1 {
-        if board.stm == WHITE {
-            let mut best_score = i16::MIN;
-            for i in 0..search_list.count {
-                let c_move = search_list.moves[i];
-                board.make_move(&c_move);
-                let score = alpha_beta(board, d - 1, i16::MIN, i16::MAX, &mut search_list);
-                board.unmake_move(&c_move);
-                best_score = best_score.max(score);
-
-                search_list.moves[i] = c_move;
-                search_list.scores[i] = score;
-                search_list.nodes[i] += search_list.current_nodes;
-
-                search_list.total_nodes += search_list.current_nodes;
-                search_list.current_nodes = 0;
-            }
+        let mut alpha = i16::MIN;
+        let mut beta = i16::MAX;
+        let mut best_score = if board.stm == WHITE {
+            i16::MIN
         } else {
-            let mut best_score = i16::MAX;
-            for i in 0..search_list.count {
-                let c_move = search_list.moves[i];
-                board.make_move(&c_move);
-                let score = alpha_beta(board, d - 1, i16::MIN, i16::MAX, &mut search_list);
-                board.unmake_move(&c_move);
+            i16::MAX
+        };
+        for i in 0..search_list.count {
+            let c_move = search_list.moves[i];
+            board.make_move(&c_move);
+            let score = alpha_beta(board, d - 1, alpha, beta, &mut search_list);
+            board.unmake_move(&c_move);
+
+            if board.stm == WHITE {
+                best_score = best_score.max(score);
+                if best_score >= beta {
+                    break;
+                }
+                alpha = alpha.max(score);
+            } else {
                 best_score = best_score.min(score);
-
-                search_list.moves[i] = c_move;
-                search_list.scores[i] = score;
-                search_list.nodes[i] += search_list.current_nodes;
-
-                search_list.total_nodes += search_list.current_nodes;
-                search_list.current_nodes = 0;
+                if best_score <= alpha {
+                    break;
+                }
+                beta = beta.min(score);
             }
+            search_list.moves[i] = c_move;
+            search_list.scores[i] = score;
+            search_list.nodes[i] += search_list.current_nodes;
+
+            search_list.total_nodes += search_list.current_nodes;
+            search_list.current_nodes = 0;
         }
         search_list.sort_by_search_score(board.stm);
     }
@@ -77,35 +77,30 @@ fn alpha_beta(
     }
 
     mi.sort_by_score();
-    if board.stm == WHITE {
-        let mut best_score = i16::MIN;
-        for i in 0..mi.c_move_list.count {
-            let c_move = mi.c_move_list.moves[i];
-            board.make_move(&c_move);
-            let score = alpha_beta(board, depth - 1, alpha, beta, search_list);
-            board.unmake_move(&c_move);
-
-            best_score = best_score.max(score);
-            alpha = alpha.max(score);
-            if alpha >= beta {
-                break;
-            }
-        }
-        best_score
+    let mut best_score = if board.stm == WHITE {
+        i16::MIN
     } else {
-        let mut best_score = i16::MAX;
-        for i in 0..mi.c_move_list.count {
-            let c_move = mi.c_move_list.moves[i];
-            board.make_move(&c_move);
-            let score = alpha_beta(board, depth - 1, alpha, beta, search_list);
-            board.unmake_move(&c_move);
+        i16::MAX
+    };
+    for i in 0..mi.c_move_list.count {
+        let c_move = mi.c_move_list.moves[i];
+        board.make_move(&c_move);
+        let score = alpha_beta(board, depth - 1, alpha, beta, search_list);
+        board.unmake_move(&c_move);
 
-            best_score = best_score.min(score);
-            beta = beta.min(score);
-            if beta <= alpha {
+        if board.stm == WHITE {
+            best_score = best_score.max(score);
+            if best_score >= beta {
                 break;
             }
+            alpha = alpha.max(score);
+        } else {
+            best_score = best_score.min(score);
+            if best_score <= alpha {
+                break;
+            }
+            beta = beta.min(score);
         }
-        best_score
     }
+    best_score
 }

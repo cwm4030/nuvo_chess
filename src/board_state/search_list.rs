@@ -33,7 +33,7 @@ impl SearchList {
         let mut indices: Vec<usize> = (0..self.count).collect();
         match stm {
             WHITE => indices.sort_by(|&a, &b| self.scores[b].cmp(&self.scores[a])),
-            _ => indices.sort_by(|&a, &b| self.scores[a].cmp(&self.scores[b]))
+            _ => indices.sort_by(|&a, &b| self.scores[a].cmp(&self.scores[b])),
         }
 
         let mut sorted_search_list = Self::new();

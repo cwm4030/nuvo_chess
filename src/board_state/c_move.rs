@@ -34,9 +34,9 @@ impl CMove {
             _ => "",
         };
         if self.promotion_piece != 0 {
-            format!("{}{}{}", from_square, to_square, promotion_piece)
+            format!("{from_square}{to_square}{promotion_piece}")
         } else {
-            format!("{}{}", from_square, to_square)
+            format!("{from_square}{to_square}")
         }
     }
 }

@@ -72,9 +72,15 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
                         nodes
                     );
                 }
-                println!("Total nodes: {}", search_list.total_nodes);
-                println!("Time taken: {:.2} seconds", elapsed.as_secs_f64());
-                println!("Nodes per second: {:.2}", nps);
+                println!(
+                    "Total nodes: {total_nodes}",
+                    total_nodes = search_list.total_nodes
+                );
+                println!(
+                    "Time taken: {elapsed:.2} seconds",
+                    elapsed = elapsed.as_secs_f64()
+                );
+                println!("Nodes per second: {nps:.2}");
                 println!();
             }
             true

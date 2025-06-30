@@ -117,12 +117,12 @@ impl Board {
         let castling_rights_string = get_castling_rights_string(self.castling_rights);
         let ep_string = SQUARE_NAMES[self.ep_index as usize];
         let zobrist_hash = self.zobrist_hasher.get_zobrist_hash(self);
-        println!("Side to move: {}", stm_string);
-        println!("Castling rights: {}", castling_rights_string);
-        println!("En passant square: {}", ep_string);
-        println!("Halfmove clock: {}", self.halfmove);
-        println!("Fullmove number: {}", self.fullmove);
-        println!("Zobrist hash: {}", zobrist_hash);
+        println!("Side to move: {stm_string}");
+        println!("Castling rights: {castling_rights_string}");
+        println!("En passant square: {ep_string}");
+        println!("Halfmove clock: {halfmove}", halfmove = self.halfmove);
+        println!("Fullmove number: {fullmove}", fullmove = self.fullmove);
+        println!("Zobrist hash: {zobrist_hash}");
         for rank in 0..8 {
             print!(" {} ", 8 - rank);
             for file in 0..8 {
@@ -135,22 +135,22 @@ impl Board {
                 } else if piece_type & OFF_BOARD_SQUARE == BLACK {
                     foreground = black;
                 }
-                print!("{}{}", background, foreground);
+                print!("{background}{foreground}");
                 if background == light_background {
                     background = dark_background;
                 } else {
                     background = light_background;
                 }
-                print!("{}", piece_string);
+                print!("{piece_string}");
             }
             if background == light_background {
                 background = dark_background;
             } else {
                 background = light_background;
             }
-            println!("{}", reset);
+            println!("{reset}");
         }
-        print!("{}", reset);
+        print!("{reset}");
         println!("    a  b  c  d  e  f  g  h  ");
         println!();
     }
@@ -164,12 +164,12 @@ impl Board {
         let castling_rights_string = get_castling_rights_string(self.castling_rights);
         let ep_string = SQUARE_NAMES[self.ep_index as usize];
         let zobrist_hash = self.zobrist_hasher.get_zobrist_hash(self);
-        println!("Side to move: {}", stm_string);
-        println!("Castling rights: {}", castling_rights_string);
-        println!("En passant square: {}", ep_string);
-        println!("Halfmove clock: {}", self.halfmove);
-        println!("Fullmove number: {}", self.fullmove);
-        println!("Zobrist hash: {}", zobrist_hash);
+        println!("Side to move: {stm_string}");
+        println!("Castling rights: {castling_rights_string}");
+        println!("En passant square: {ep_string}");
+        println!("Halfmove clock: {halfmove}", halfmove = self.halfmove);
+        println!("Fullmove number: {fullmove}", fullmove = self.fullmove);
+        println!("Zobrist hash: {zobrist_hash}");
         println!("   --------------------------");
         for rank in 0..8 {
             print!(" {} |", 8 - rank);
@@ -177,7 +177,7 @@ impl Board {
                 let square_index = ON_BOARD_SQUARES[rank * 8 + file] as usize;
                 let piece_type = self.squares[square_index];
                 let piece_string = get_piece_string(piece_type, true);
-                print!("{}", piece_string);
+                print!("{piece_string}");
             }
             println!("|");
         }
