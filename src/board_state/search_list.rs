@@ -29,6 +29,14 @@ impl SearchList {
         }
     }
 
+    pub fn update_at_index(&mut self, index: usize, score: i16, c_move: CMove, nodes: usize) {
+        self.moves[index] = c_move;
+        self.scores[index] = score;
+        self.nodes[index] += nodes;
+        self.total_nodes += nodes;
+        self.current_nodes = 0;
+    }
+
     pub fn sort_by_search_score(&mut self, stm: u8) {
         let mut indices: Vec<usize> = (0..self.count).collect();
         match stm {

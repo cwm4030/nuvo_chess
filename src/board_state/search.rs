@@ -28,22 +28,19 @@ pub fn alpha_beta_search(board: &mut Board, depth: usize) -> SearchList {
             if board.stm == WHITE {
                 best_score = best_score.max(score);
                 if best_score >= beta {
+                    search_list.update_at_index(i, score, c_move, search_list.current_nodes);
                     break;
                 }
                 alpha = alpha.max(score);
             } else {
                 best_score = best_score.min(score);
                 if best_score <= alpha {
+                    search_list.update_at_index(i, score, c_move, search_list.current_nodes);
                     break;
                 }
                 beta = beta.min(score);
             }
-            search_list.moves[i] = c_move;
-            search_list.scores[i] = score;
-            search_list.nodes[i] += search_list.current_nodes;
-
-            search_list.total_nodes += search_list.current_nodes;
-            search_list.current_nodes = 0;
+            search_list.update_at_index(i, score, c_move, search_list.current_nodes);
         }
         search_list.sort_by_search_score(board.stm);
     }
