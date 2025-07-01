@@ -45,16 +45,26 @@ pub fn evaluate_board(board: &Board) -> i16 {
     score += (board.w_knights as i16 - board.b_knights as i16) * 320;
     score += (board.w_pawns as i16 - board.b_pawns as i16) * 100;
 
-    score += pst_evaulate(&board.w_pawn_indexes, &W_PAWNS);
-    score -= pst_evaulate(&board.b_pawn_indexes, &B_PAWNS);
-    score += pst_evaulate(&board.w_knight_indexes, &KNIGHTS);
-    score -= pst_evaulate(&board.b_knight_indexes, &KNIGHTS);
-    score += pst_evaulate(&board.w_bishop_indexes, &BISHOPS);
-    score -= pst_evaulate(&board.b_bishop_indexes, &BISHOPS);
-    score += pst_evaulate(&board.w_rook_indexes, &W_ROOKS);
-    score -= pst_evaulate(&board.b_rook_indexes, &B_ROOKS);
-    score += pst_evaulate(&board.w_queen_indexes, &QUEENS);
-    score -= pst_evaulate(&board.b_queen_indexes, &QUEENS);
+    let w_pawns = &board.w_pawn_indexes[..board.w_pawns as usize];
+    let b_pawns = &board.b_pawn_indexes[..board.b_pawns as usize];
+    let w_knights = &board.w_knight_indexes[..board.w_knights as usize];
+    let b_knights = &board.b_knight_indexes[..board.b_knights as usize];
+    let w_bishops = &board.w_bishop_indexes[..board.w_bishops as usize];
+    let b_bishops = &board.b_bishop_indexes[..board.b_bishops as usize];
+    let w_rooks = &board.w_rook_indexes[..board.w_rooks as usize];
+    let b_rooks = &board.b_rook_indexes[..board.b_rooks as usize];
+    let w_queens = &board.w_queen_indexes[..board.w_queens as usize];
+    let b_queens = &board.b_queen_indexes[..board.b_queens as usize];
+    score += pst_evaulate(w_pawns, &W_PAWNS);
+    score -= pst_evaulate(b_pawns, &B_PAWNS);
+    score += pst_evaulate(w_knights, &KNIGHTS);
+    score -= pst_evaulate(b_knights, &KNIGHTS);
+    score += pst_evaulate(w_bishops, &BISHOPS);
+    score -= pst_evaulate(b_bishops, &BISHOPS);
+    score += pst_evaulate(w_rooks, &W_ROOKS);
+    score -= pst_evaulate(b_rooks, &B_ROOKS);
+    score += pst_evaulate(w_queens, &QUEENS);
+    score -= pst_evaulate(b_queens, &QUEENS);
 
     score
 }
