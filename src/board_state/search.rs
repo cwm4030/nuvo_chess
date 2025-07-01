@@ -126,8 +126,7 @@ fn quiescence_search(
     mut alpha: i16,
     mut beta: i16,
 ) -> i16 {
-    let mut mi = generate_moves(board, true);
-    let se = evaluate_board(board, mi.c_move_list.count);
+    let se = evaluate_board(board);
 
     if search_stop.load(Ordering::Relaxed) {
         search_list.current_nodes += 1;
@@ -144,7 +143,8 @@ fn quiescence_search(
         return best_score;
     }
 
-    mi = generate_capture_moves(board, false);
+    let mut mi = generate_capture_moves(board, true);
+    mi.sort_by_score();
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
         board.make_move(&c_move);
