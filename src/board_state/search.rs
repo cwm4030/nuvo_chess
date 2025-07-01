@@ -6,7 +6,10 @@ use std::sync::{
 };
 
 use crate::board_state::{
-    board::Board, evaluation::evaluate_board, move_gen::generate_moves, piece_type::WHITE,
+    board::Board,
+    evaluation::evaluate_board,
+    move_gen::{generate_capture_moves, generate_moves},
+    piece_type::WHITE,
     search_list::SearchList,
 };
 
@@ -84,7 +87,7 @@ fn alpha_beta(
         return 0;
     } else if depth == 0 {
         search_list.current_nodes += 1;
-        return evaluate_board(board, mi.c_move_list.count);
+        return quiescence_search(board, search_list, search_stop, alpha, beta);
     }
 
     mi.sort_by_score();
@@ -97,6 +100,55 @@ fn alpha_beta(
         let c_move = mi.c_move_list.moves[i];
         board.make_move(&c_move);
         let score = alpha_beta(board, search_list, search_stop, depth - 1, alpha, beta);
+        board.unmake_move(&c_move);
+
+        if board.stm == WHITE {
+            best_score = best_score.max(score);
+            if best_score >= beta {
+                break;
+            }
+            alpha = alpha.max(score);
+        } else {
+            best_score = best_score.min(score);
+            if best_score <= alpha {
+                break;
+            }
+            beta = beta.min(score);
+        }
+    }
+    best_score
+}
+
+fn quiescence_search(
+    board: &mut Board,
+    search_list: &mut SearchList,
+    search_stop: &Arc<AtomicBool>,
+    mut alpha: i16,
+    mut beta: i16,
+) -> i16 {
+    let mut mi = generate_moves(board, true);
+    let se = evaluate_board(board, mi.c_move_list.count);
+
+    if search_stop.load(Ordering::Relaxed) {
+        search_list.current_nodes += 1;
+        return se;
+    }
+    let mut best_score = se;
+    if board.stm == WHITE {
+        if best_score >= beta {
+            search_list.current_nodes += 1;
+            return best_score;
+        }
+    } else if best_score <= alpha {
+        search_list.current_nodes += 1;
+        return best_score;
+    }
+
+    mi = generate_capture_moves(board, false);
+    for i in 0..mi.c_move_list.count {
+        let c_move = mi.c_move_list.moves[i];
+        board.make_move(&c_move);
+        let score = quiescence_search(board, search_list, search_stop, alpha, beta);
         board.unmake_move(&c_move);
 
         if board.stm == WHITE {

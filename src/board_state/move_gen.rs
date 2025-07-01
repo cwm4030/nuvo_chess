@@ -103,6 +103,135 @@ impl MoveInformation {
     }
 }
 
+pub fn generate_capture_moves(board: &Board, apply_score: bool) -> MoveInformation {
+    let mut mi = MoveInformation::new();
+    set_pin_defend_map(&mut mi, board);
+
+    if board.stm == WHITE {
+        if mi.check_count <= 1 {
+            for i in 0..board.w_pawns {
+                generate_capture_pawn_moves(
+                    &mut mi,
+                    board,
+                    board.w_pawn_indexes[i as usize],
+                    &PAWN_WHITE_DIRECTIONS,
+                    apply_score,
+                );
+            }
+
+            for i in 0..board.w_knights {
+                generate_non_sliding_capture_moves(
+                    &mut mi,
+                    board,
+                    board.w_knight_indexes[i as usize],
+                    &KNIGHT_DIRECTIONS,
+                    apply_score,
+                );
+            }
+
+            for i in 0..board.w_bishops {
+                generate_sliding_capture_moves(
+                    &mut mi,
+                    board,
+                    board.w_bishop_indexes[i as usize],
+                    &BISHOP_DIRECTIONS,
+                    apply_score,
+                );
+            }
+
+            for i in 0..board.w_rooks {
+                generate_sliding_capture_moves(
+                    &mut mi,
+                    board,
+                    board.w_rook_indexes[i as usize],
+                    &ROOK_DIRECTIONS,
+                    apply_score,
+                );
+            }
+
+            for i in 0..board.w_queens {
+                generate_sliding_capture_moves(
+                    &mut mi,
+                    board,
+                    board.w_queen_indexes[i as usize],
+                    &QUEEN_DIRECTIONS,
+                    apply_score,
+                );
+            }
+        }
+
+        generate_non_sliding_capture_moves(
+            &mut mi,
+            board,
+            board.w_king_index,
+            &KING_DIRECTIONS,
+            apply_score,
+        );
+    } else {
+        if mi.check_count <= 1 {
+            for i in 0..board.b_pawns {
+                generate_capture_pawn_moves(
+                    &mut mi,
+                    board,
+                    board.b_pawn_indexes[i as usize],
+                    &PAWN_BLACK_DIRECTIONS,
+                    apply_score,
+                );
+            }
+
+            for i in 0..board.b_knights {
+                generate_non_sliding_capture_moves(
+                    &mut mi,
+                    board,
+                    board.b_knight_indexes[i as usize],
+                    &KNIGHT_DIRECTIONS,
+                    apply_score,
+                );
+            }
+
+            for i in 0..board.b_bishops {
+                generate_sliding_capture_moves(
+                    &mut mi,
+                    board,
+                    board.b_bishop_indexes[i as usize],
+                    &BISHOP_DIRECTIONS,
+                    apply_score,
+                );
+            }
+
+            for i in 0..board.b_rooks {
+                generate_sliding_capture_moves(
+                    &mut mi,
+                    board,
+                    board.b_rook_indexes[i as usize],
+                    &ROOK_DIRECTIONS,
+                    apply_score,
+                );
+            }
+
+            for i in 0..board.b_queens {
+                generate_sliding_capture_moves(
+                    &mut mi,
+                    board,
+                    board.b_queen_indexes[i as usize],
+                    &QUEEN_DIRECTIONS,
+                    apply_score,
+                );
+            }
+        }
+
+        generate_non_sliding_capture_moves(
+            &mut mi,
+            board,
+            board.b_king_index,
+            &KING_DIRECTIONS,
+            apply_score,
+        );
+    }
+
+    mi
+}
+
 pub fn generate_moves(board: &Board, apply_score: bool) -> MoveInformation {
     let mut mi = MoveInformation::new();
     set_pin_defend_map(&mut mi, board);
@@ -330,6 +459,22 @@ fn generate_non_sliding_moves(
     }
 }
 
+fn generate_non_sliding_capture_moves(
+    mi: &mut MoveInformation,
+    board: &Board,
+    from_index: u8,
+    directions: &[i16],
+    apply_score: bool,
+) {
+    for &direction in directions {
+        let to_index = (from_index as i16 + direction) as u8;
+        let to_square = board.squares[to_index as usize];
+        if to_square & OFF_BOARD_SQUARE == (board.stm ^ OFF_BOARD_SQUARE) {
+            add_legal_move(mi, board, from_index, to_index, 0, apply_score);
+        }
+    }
+}
+
 fn generate_sliding_moves(
     mi: &mut MoveInformation,
     board: &Board,
@@ -342,6 +487,27 @@ fn generate_sliding_moves(
         let mut to_square = board.squares[to_index as usize];
         while to_square == EMPTY_SQUARE {
             add_legal_move(mi, board, from_index, to_index as u8, 0, apply_score);
+            to_index += direction;
+            to_square = board.squares[to_index as usize];
+        }
+
+        if to_square & OFF_BOARD_SQUARE == (board.stm ^ OFF_BOARD_SQUARE) {
+            add_legal_move(mi, board, from_index, to_index as u8, 0, apply_score);
+        }
+    }
+}
+
+fn generate_sliding_capture_moves(
+    mi: &mut MoveInformation,
+    board: &Board,
+    from_index: u8,
+    directions: &[i16],
+    apply_score: bool,
+) {
+    for &direction in directions {
+        let mut to_index = from_index as i16 + direction;
+        let mut to_square = board.squares[to_index as usize];
+        while to_square == EMPTY_SQUARE {
             to_index += direction;
             to_square = board.squares[to_index as usize];
         }
