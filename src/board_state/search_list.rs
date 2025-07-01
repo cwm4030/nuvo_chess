@@ -1,5 +1,6 @@
 use crate::board_state::{c_move::CMove, c_move_list::CMoveList, piece_type::WHITE};
 
+#[derive(Clone, Copy)]
 pub struct SearchList {
     pub moves: [CMove; 256],
     pub scores: [i16; 256],

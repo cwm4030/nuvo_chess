@@ -1,16 +1,26 @@
 const MATE: i16 = i16::MAX - 1;
 
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+
 use crate::board_state::{
     board::Board, evaluation::evaluate_board, move_gen::generate_moves, piece_type::WHITE,
     search_list::SearchList,
 };
 
-pub fn alpha_beta_search(board: &mut Board, depth: usize) -> SearchList {
+pub fn alpha_beta_search(
+    board: &mut Board,
+    depth: usize,
+    search_stop: &Arc<AtomicBool>,
+) -> SearchList {
     let mi = generate_moves(board, true);
     let mut search_list = SearchList::new();
     search_list.set_from_c_move_list(&mi.c_move_list);
     search_list.sort_by_move_score(&mi.move_scores);
 
+    let mut search_list_result = search_list;
     for d in 1..depth + 1 {
         let mut alpha = i16::MIN;
         let mut beta = i16::MAX;
@@ -20,9 +30,12 @@ pub fn alpha_beta_search(board: &mut Board, depth: usize) -> SearchList {
             i16::MAX
         };
         for i in 0..search_list.count {
+            if search_stop.load(Ordering::Relaxed) {
+                return search_list_result;
+            }
             let c_move = search_list.moves[i];
             board.make_move(&c_move);
-            let score = alpha_beta(board, d - 1, alpha, beta, &mut search_list);
+            let score = alpha_beta(board, &mut search_list, search_stop, d - 1, alpha, beta);
             board.unmake_move(&c_move);
 
             if board.stm == WHITE {
@@ -43,19 +56,20 @@ pub fn alpha_beta_search(board: &mut Board, depth: usize) -> SearchList {
             search_list.update_at_index(i, score, c_move, search_list.current_nodes);
         }
         search_list.sort_by_search_score(board.stm);
+        search_list_result = search_list;
     }
-
-    search_list
+    search_list_result
 }
 
 fn alpha_beta(
     board: &mut Board,
+    search_list: &mut SearchList,
+    search_stop: &Arc<AtomicBool>,
     depth: usize,
     mut alpha: i16,
     mut beta: i16,
-    search_list: &mut SearchList,
 ) -> i16 {
-    if board.halfmove >= 50 {
+    if board.halfmove >= 50 || search_stop.load(Ordering::Relaxed) {
         search_list.current_nodes += 1;
         return 0;
     }
@@ -82,7 +96,7 @@ fn alpha_beta(
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
         board.make_move(&c_move);
-        let score = alpha_beta(board, depth - 1, alpha, beta, search_list);
+        let score = alpha_beta(board, search_list, search_stop, depth - 1, alpha, beta);
         board.unmake_move(&c_move);
 
         if board.stm == WHITE {

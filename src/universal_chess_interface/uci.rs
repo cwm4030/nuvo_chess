@@ -1,4 +1,7 @@
 use std::io::Write;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
 use std::time::Instant;
 
 use crate::board_state::board::Board;
@@ -8,7 +11,11 @@ use crate::board_state::perft;
 use crate::board_state::piece_type::WHITE;
 use crate::board_state::search::alpha_beta_search;
 
-pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
+pub fn uci_execute_command(
+    board: &mut Board,
+    command: &str,
+    search_stop: &Arc<AtomicBool>,
+) -> bool {
     let parts: Vec<&str> = command.split_whitespace().collect();
     let first_part = parts.first().unwrap_or(&"unknown");
     match *first_part {
@@ -57,32 +64,42 @@ pub fn uci_execute_command(board: &mut Board, command: &str) -> bool {
         "go" => {
             if parts.len() > 1 && parts[1] == "depth" {
                 let depth = parts.get(2).unwrap_or(&"1").parse().unwrap_or(1);
-                let now = Instant::now();
-                let search_list = alpha_beta_search(board, depth);
-                let elapsed = now.elapsed();
-                let nps = search_list.total_nodes as f64 / elapsed.as_secs_f64();
-                for i in 0..search_list.count {
-                    let c_move = search_list.moves[i];
-                    let score = search_list.scores[i] as f32 / 100.0_f32;
-                    let nodes = search_list.nodes[i];
+                let mut board = *board;
+
+                search_stop.store(false, Ordering::SeqCst);
+                let search_stop = search_stop.clone();
+                thread::spawn(move || {
+                    let now = Instant::now();
+                    let search_list = alpha_beta_search(&mut board, depth, &search_stop);
+                    let elapsed = now.elapsed();
+                    let nps = search_list.total_nodes as f64 / elapsed.as_secs_f64();
+                    for i in 0..search_list.count {
+                        let c_move = search_list.moves[i];
+                        let score = search_list.scores[i] as f32 / 100.0_f32;
+                        let nodes = search_list.nodes[i];
+                        println!(
+                            "{}: {:.2}, {} nodes",
+                            c_move.get_c_move_string(board.stm),
+                            score,
+                            nodes
+                        );
+                    }
                     println!(
-                        "{}: {:.2}, {} nodes",
-                        c_move.get_c_move_string(board.stm),
-                        score,
-                        nodes
+                        "Total nodes: {total_nodes}",
+                        total_nodes = search_list.total_nodes
                     );
-                }
-                println!(
-                    "Total nodes: {total_nodes}",
-                    total_nodes = search_list.total_nodes
-                );
-                println!(
-                    "Time taken: {elapsed:.2} seconds",
-                    elapsed = elapsed.as_secs_f64()
-                );
-                println!("Nodes per second: {nps:.2}");
-                println!();
+                    println!(
+                        "Time taken: {elapsed:.2} seconds",
+                        elapsed = elapsed.as_secs_f64()
+                    );
+                    println!("Nodes per second: {nps:.2}");
+                    println!();
+                });
             }
+            true
+        }
+        "stop" => {
+            search_stop.store(true, Ordering::SeqCst);
             true
         }
         "clear" => {
