@@ -2,7 +2,6 @@ use std::io::Write;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
-use std::time::Instant;
 
 use crate::board_state::board::Board;
 use crate::board_state::evaluation::evaluate_board;
@@ -67,31 +66,7 @@ pub fn uci_execute_command(
                 search_stop.store(false, Ordering::SeqCst);
                 let search_stop = search_stop.clone();
                 thread::spawn(move || {
-                    let now = Instant::now();
-                    let search_list = alpha_beta_search(&mut board, depth, &search_stop);
-                    let elapsed = now.elapsed();
-                    let nps = search_list.total_nodes as f64 / elapsed.as_secs_f64();
-                    for i in 0..search_list.count {
-                        let c_move = search_list.moves[i];
-                        let score = search_list.scores[i] as f32 / 100.0_f32;
-                        let nodes = search_list.nodes[i];
-                        println!(
-                            "{}: {:.2}, {} nodes",
-                            c_move.get_c_move_string(),
-                            score,
-                            nodes
-                        );
-                    }
-                    println!(
-                        "Total nodes: {total_nodes}",
-                        total_nodes = search_list.total_nodes
-                    );
-                    println!(
-                        "Time taken: {elapsed:.2} seconds",
-                        elapsed = elapsed.as_secs_f64()
-                    );
-                    println!("Nodes per second: {nps:.2}");
-                    println!();
+                    alpha_beta_search(&mut board, depth, &search_stop);
                 });
             }
             true

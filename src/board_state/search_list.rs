@@ -4,9 +4,7 @@ use crate::board_state::{c_move::CMove, c_move_list::CMoveList, piece_type::WHIT
 pub struct SearchList {
     pub moves: [CMove; 256],
     pub scores: [i16; 256],
-    pub nodes: [usize; 256],
-    pub current_nodes: usize,
-    pub total_nodes: usize,
+    pub nodes: usize,
     pub count: usize,
 }
 
@@ -15,9 +13,7 @@ impl SearchList {
         SearchList {
             moves: [CMove::new(); 256],
             scores: [0; 256],
-            nodes: [0; 256],
-            current_nodes: 0,
-            total_nodes: 0,
+            nodes: 0,
             count: 0,
         }
     }
@@ -30,12 +26,9 @@ impl SearchList {
         }
     }
 
-    pub fn update_at_index(&mut self, index: usize, score: i16, c_move: CMove, nodes: usize) {
+    pub fn update_at_index(&mut self, index: usize, score: i16, c_move: CMove) {
         self.moves[index] = c_move;
         self.scores[index] = score;
-        self.nodes[index] += nodes;
-        self.total_nodes += nodes;
-        self.current_nodes = 0;
     }
 
     pub fn sort_by_search_score(&mut self, stm: u8) {
@@ -49,10 +42,8 @@ impl SearchList {
         for (sorted_index, &previous_index) in indices.iter().enumerate() {
             sorted_search_list.moves[sorted_index] = self.moves[previous_index];
             sorted_search_list.scores[sorted_index] = self.scores[previous_index];
-            sorted_search_list.nodes[sorted_index] = self.nodes[previous_index];
         }
-        sorted_search_list.current_nodes = self.current_nodes;
-        sorted_search_list.total_nodes = self.total_nodes;
+        sorted_search_list.nodes = self.nodes;
         sorted_search_list.count = self.count;
 
         *self = sorted_search_list;
@@ -66,10 +57,8 @@ impl SearchList {
         for (sorted_index, &previous_index) in indices.iter().enumerate() {
             sorted_search_list.moves[sorted_index] = self.moves[previous_index];
             sorted_search_list.scores[sorted_index] = scores[previous_index] as i16;
-            sorted_search_list.nodes[sorted_index] = self.nodes[previous_index];
         }
-        sorted_search_list.current_nodes = self.current_nodes;
-        sorted_search_list.total_nodes = self.total_nodes;
+        sorted_search_list.nodes = self.nodes;
         sorted_search_list.count = self.count;
 
         *self = sorted_search_list;
