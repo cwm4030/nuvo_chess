@@ -1,5 +1,5 @@
 use crate::board_state::{
-    piece_type::{BISHOP, BLACK, KNIGHT, QUEEN, ROOK, WHITE},
+    piece_type::{BISHOP, KNIGHT, QUEEN, ROOK},
     square_index::SQUARE_NAMES,
 };
 
@@ -19,18 +19,14 @@ impl CMove {
         }
     }
 
-    pub fn get_c_move_string(&self, stm: u8) -> String {
+    pub fn get_c_move_string(&self) -> String {
         let from_square = SQUARE_NAMES[self.from_index as usize];
         let to_square = SQUARE_NAMES[self.to_index as usize];
-        let promotion_piece = match stm | self.promotion_piece {
-            x if x == (BLACK | KNIGHT) => "n",
-            x if x == (BLACK | BISHOP) => "b",
-            x if x == (BLACK | ROOK) => "r",
-            x if x == (BLACK | QUEEN) => "q",
-            x if x == (WHITE | KNIGHT) => "N",
-            x if x == (WHITE | BISHOP) => "B",
-            x if x == (WHITE | ROOK) => "R",
-            x if x == (WHITE | QUEEN) => "Q",
+        let promotion_piece = match self.promotion_piece {
+            KNIGHT => "n",
+            BISHOP => "b",
+            ROOK => "r",
+            QUEEN => "q",
             _ => "",
         };
         if self.promotion_piece != 0 {

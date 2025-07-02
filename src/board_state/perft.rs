@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::board_state::{board::Board, move_gen::generate_moves, piece_type::OFF_BOARD_SQUARE};
+use crate::board_state::{board::Board, move_gen::generate_moves};
 
 pub fn print_perft(board: &mut Board, mut depth: usize) {
     if depth == 0 {
@@ -15,11 +15,7 @@ pub fn print_perft(board: &mut Board, mut depth: usize) {
         let c_move = mi.c_move_list.moves[i];
         board.make_move(&c_move);
         let nodes = perft(board, depth - 1);
-        println!(
-            "{}: {}",
-            c_move.get_c_move_string(board.stm ^ OFF_BOARD_SQUARE),
-            nodes
-        );
+        println!("{}: {}", c_move.get_c_move_string(), nodes);
         total_nodes += nodes;
         board.unmake_move(&c_move);
     }

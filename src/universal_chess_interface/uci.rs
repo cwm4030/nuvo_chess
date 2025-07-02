@@ -77,7 +77,7 @@ pub fn uci_execute_command(
                         let nodes = search_list.nodes[i];
                         println!(
                             "{}: {:.2}, {} nodes",
-                            c_move.get_c_move_string(board.stm),
+                            c_move.get_c_move_string(),
                             score,
                             nodes
                         );
