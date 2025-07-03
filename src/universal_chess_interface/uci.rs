@@ -32,6 +32,33 @@ pub fn uci_execute_command(
             println!("readyok");
             true
         }
+        "print" => {
+            board.print_board(false);
+            true
+        }
+        "printsimple" => {
+            board.print_board(true);
+            true
+        }
+        "printascii" => {
+            board.print_ascii_board();
+            true
+        }
+        "move" => {
+            if parts.len() > 1 {
+                let move_str = parts[1];
+                board.make_move_str(move_str);
+            } else {
+                println!("Error: No move provided");
+            }
+            board.print_board(false);
+            true
+        }
+        "undomove" => {
+            board.unmake_last_move();
+            board.print_board(false);
+            true
+        }
         "position" => {
             if parts.len() > 2 && parts[1] == "fen" {
                 let fen = parts[2..].join(" ");
@@ -41,26 +68,22 @@ pub fn uci_execute_command(
                     + " moves "
                     + &parts[2..].join(" ").to_string();
                 board.set_from_fen(fen.as_str());
-            } else if parts.len() > 1 && parts[1] == "print" {
-                board.print_board(false);
-            } else if parts.len() > 1 && parts[1] == "print_simple" {
-                board.print_board(true);
-            } else if parts.len() > 1 && parts[1] == "print_ascii" {
-                board.print_ascii_board();
-            } else if parts.len() > 1 && parts[1] == "perft" {
-                let depth = parts.get(2).unwrap_or(&"1").parse().unwrap_or(1) as usize;
-                perft::print_perft(board, depth);
-            } else if parts.len() > 1 && parts[1] == "make_move" {
-                let move_str = parts.get(2).unwrap_or(&"");
-                board.make_move_str(move_str);
-            } else if parts.len() > 1 && parts[1] == "unmake_move" {
-                board.unmake_last_move();
-            } else if parts.len() > 1 && parts[1] == "evaluate" {
-                let mut score = evaluate_board(board);
-                score = if board.stm == WHITE { score } else { -score };
-                println!("Score: {:.2}", score as f32 / 100.0_f32);
-                println!();
             }
+            true
+        }
+        "perft" => {
+            if parts.len() > 1 {
+                let depth = parts[1].parse().unwrap_or(1) as usize;
+                perft::print_perft(board, depth);
+            } else {
+                println!("Error: No depth provided for perft");
+            }
+            true
+        }
+        "eval" => {
+            let score = evaluate_board(board);
+            println!("Eval: {:.2}", score as f32 / 100.0_f32);
+            println!();
             true
         }
         "go" => {
