@@ -1,10 +1,7 @@
 const MATE: i16 = i16::MAX - 1;
 
 use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, Mutex},
     time::Instant,
 };
 
@@ -14,16 +11,25 @@ use crate::board_state::{
     move_gen::{generate_capture_moves, generate_moves},
     piece_type::WHITE,
     search_list::SearchList,
+    search_settings::SearchSettings,
 };
 
-pub fn alpha_beta_search(board: &mut Board, depth: usize, search_stop: &Arc<AtomicBool>) {
+pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
     let mi = generate_moves(board, true);
     let mut search_list = SearchList::new();
     search_list.set_from_c_move_list(&mi.c_move_list);
     search_list.sort_by_move_score(&mi.move_scores);
 
     let mut search_list_result = search_list;
-    for d in 1..depth + 1 {
+    let mut depth = 1;
+    loop {
+        if search_settings
+            .lock()
+            .unwrap()
+            .should_stop_search(depth, search_list_result.nodes)
+        {
+            break;
+        }
         let instant = Instant::now();
         search_list.nodes = 0;
         let mut alpha = i16::MIN;
@@ -34,7 +40,11 @@ pub fn alpha_beta_search(board: &mut Board, depth: usize, search_stop: &Arc<Atom
             i16::MAX
         };
         for i in 0..search_list.count {
-            if search_stop.load(Ordering::Relaxed) {
+            if search_settings
+                .lock()
+                .unwrap()
+                .should_stop_search(depth, search_list.nodes)
+            {
                 println!(
                     "bestmove {}",
                     search_list_result.moves[0].get_c_move_string()
@@ -43,7 +53,14 @@ pub fn alpha_beta_search(board: &mut Board, depth: usize, search_stop: &Arc<Atom
             }
             let c_move = search_list.moves[i];
             board.make_move(&c_move);
-            let score = alpha_beta(board, &mut search_list, search_stop, d - 1, alpha, beta);
+            let score = alpha_beta(
+                board,
+                &mut search_list,
+                search_settings,
+                depth - 1,
+                alpha,
+                beta,
+            );
             board.unmake_move(&c_move);
 
             if board.stm == WHITE {
@@ -72,11 +89,13 @@ pub fn alpha_beta_search(board: &mut Board, depth: usize, search_stop: &Arc<Atom
             f64::INFINITY
         };
         println!(
-            "info depth {d} score {best_score} nodes {} time {:.2} nps {:.2}",
+            "info depth {depth} score cp {best_score} pv {} nodes {} time {:.2} nps {:.2}",
+            search_list_result.moves[0].get_c_move_string(),
             search_list.nodes,
             elapsed * 1000.0,
             nodes_per_second
         );
+        depth += 1;
     }
     println!(
         "bestmove {}",
@@ -87,13 +106,20 @@ pub fn alpha_beta_search(board: &mut Board, depth: usize, search_stop: &Arc<Atom
 fn alpha_beta(
     board: &mut Board,
     search_list: &mut SearchList,
-    search_stop: &Arc<AtomicBool>,
+    search_settings: &Arc<Mutex<SearchSettings>>,
     depth: usize,
     mut alpha: i16,
     mut beta: i16,
 ) -> i16 {
-    if board.halfmove >= 50 || search_stop.load(Ordering::Relaxed) {
+    if board.halfmove >= 50 {
         search_list.nodes += 1;
+        return 0;
+    } else if search_list.nodes & 2048 == 0
+        && search_settings
+            .lock()
+            .unwrap()
+            .should_stop_search(depth, search_list.nodes)
+    {
         return 0;
     }
 
@@ -107,7 +133,7 @@ fn alpha_beta(
         return 0;
     } else if depth == 0 {
         search_list.nodes += 1;
-        return quiescence_search(board, search_list, search_stop, alpha, beta);
+        return quiescence_search(board, search_list, search_settings, alpha, beta);
     }
 
     mi.sort_by_score();
@@ -119,7 +145,7 @@ fn alpha_beta(
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
         board.make_move(&c_move);
-        let score = alpha_beta(board, search_list, search_stop, depth - 1, alpha, beta);
+        let score = alpha_beta(board, search_list, search_settings, depth - 1, alpha, beta);
         board.unmake_move(&c_move);
 
         if board.stm == WHITE {
@@ -142,14 +168,16 @@ fn alpha_beta(
 fn quiescence_search(
     board: &mut Board,
     search_list: &mut SearchList,
-    search_stop: &Arc<AtomicBool>,
+    search_settings: &Arc<Mutex<SearchSettings>>,
     mut alpha: i16,
     mut beta: i16,
 ) -> i16 {
     let se = evaluate_board(board);
-
-    if search_stop.load(Ordering::Relaxed) {
-        search_list.nodes += 1;
+    if search_settings
+        .lock()
+        .unwrap()
+        .should_stop_search(0, search_list.nodes)
+    {
         return se;
     }
     let mut best_score = se;
@@ -168,7 +196,7 @@ fn quiescence_search(
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
         board.make_move(&c_move);
-        let score = quiescence_search(board, search_list, search_stop, alpha, beta);
+        let score = quiescence_search(board, search_list, search_settings, alpha, beta);
         board.unmake_move(&c_move);
 
         if board.stm == WHITE {

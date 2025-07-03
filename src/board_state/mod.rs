@@ -10,5 +10,6 @@ pub mod piece_type;
 pub mod rng;
 pub mod search;
 pub mod search_list;
+pub mod search_settings;
 pub mod square_index;
 pub mod zobrist_hasher;

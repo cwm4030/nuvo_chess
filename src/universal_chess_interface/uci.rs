@@ -1,18 +1,19 @@
 use std::io::Write;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Instant;
 
 use crate::board_state::board::Board;
 use crate::board_state::evaluation::evaluate_board;
 use crate::board_state::perft;
 use crate::board_state::piece_type::WHITE;
 use crate::board_state::search::alpha_beta_search;
+use crate::board_state::search_settings::SearchSettings;
 
 pub fn uci_execute_command(
     board: &mut Board,
+    search_settings: &Arc<Mutex<SearchSettings>>,
     command: &str,
-    search_stop: &Arc<AtomicBool>,
 ) -> bool {
     let parts: Vec<&str> = command.split_whitespace().collect();
     let first_part = parts.first().unwrap_or(&"unknown");
@@ -21,6 +22,10 @@ pub fn uci_execute_command(
             println!("id name nuvo_chess");
             println!("id author Caden Miller");
             println!("uciok");
+            true
+        }
+        "ucinewgame" => {
+            board.set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
             true
         }
         "isready" => {
@@ -59,20 +64,11 @@ pub fn uci_execute_command(
             true
         }
         "go" => {
-            if parts.len() > 1 && parts[1] == "depth" {
-                let depth = parts.get(2).unwrap_or(&"1").parse().unwrap_or(1);
-                let mut board = *board;
-
-                search_stop.store(false, Ordering::SeqCst);
-                let search_stop = search_stop.clone();
-                thread::spawn(move || {
-                    alpha_beta_search(&mut board, depth, &search_stop);
-                });
-            }
+            uci_go(board, search_settings, &parts[1..]);
             true
         }
         "stop" => {
-            search_stop.store(true, Ordering::SeqCst);
+            search_settings.lock().unwrap().stop_search = true;
             true
         }
         "clear" => {
@@ -83,4 +79,114 @@ pub fn uci_execute_command(
         "quit" => false,
         _ => true,
     }
+}
+
+fn uci_go(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>, parts: &[&str]) {
+    let mut depth = usize::MAX;
+    let mut nodes = usize::MAX;
+    let mut winc = 0.0_f64;
+    let mut binc = 0.0_f64;
+    let mut moves_to_go = 0;
+    let mut calc_move_time = f64::MAX;
+    let mut move_time = f64::MAX;
+    let mut infinite = false;
+    for i in (0..parts.len()).step_by(2) {
+        match parts.get(i) {
+            Some(&"depth") => {
+                if let Some(depth_str) = parts.get(i + 1) {
+                    if let Ok(d) = depth_str.parse::<usize>() {
+                        depth = d;
+                    }
+                }
+            }
+            Some(&"nodes") => {
+                if let Some(nodes_str) = parts.get(i + 1) {
+                    if let Ok(n) = nodes_str.parse::<usize>() {
+                        nodes = n;
+                    }
+                }
+            }
+            Some(&"wtime") => {
+                if let Some(time_str) = parts.get(i + 1) {
+                    if let Ok(time) = time_str.parse::<usize>() {
+                        let wtime = time as f64 / 1000.0;
+                        if board.stm == WHITE {
+                            calc_move_time = wtime;
+                        }
+                    }
+                }
+            }
+            Some(&"btime") => {
+                if let Some(time_str) = parts.get(i + 1) {
+                    if let Ok(time) = time_str.parse::<usize>() {
+                        let btime = time as f64 / 1000.0;
+                        if board.stm != WHITE {
+                            calc_move_time = btime;
+                        }
+                    }
+                }
+            }
+            Some(&"winc") => {
+                if let Some(time_str) = parts.get(i + 1) {
+                    if let Ok(time) = time_str.parse::<usize>() {
+                        winc = time as f64 / 1000.0;
+                    }
+                }
+            }
+            Some(&"binc") => {
+                if let Some(time_str) = parts.get(i + 1) {
+                    if let Ok(time) = time_str.parse::<usize>() {
+                        binc = time as f64 / 1000.0;
+                    }
+                }
+            }
+            Some(&"movestogo") => {
+                if let Some(moves_to_go_str) = parts.get(i + 1) {
+                    if let Ok(mtg) = moves_to_go_str.parse::<usize>() {
+                        moves_to_go = mtg;
+                    }
+                }
+            }
+            Some(&"movetime") => {
+                if let Some(move_time_str) = parts.get(i + 1) {
+                    if let Ok(mt) = move_time_str.parse::<usize>() {
+                        move_time = mt as f64 / 1000.0;
+                    }
+                }
+            }
+            Some(&"infinite") => {
+                infinite = true;
+            }
+            _ => {}
+        }
+    }
+
+    search_settings.lock().unwrap().stop_search = false;
+    search_settings.lock().unwrap().depth = depth;
+    search_settings.lock().unwrap().nodes = nodes;
+
+    let mut time = calc_move_time;
+    time += if board.stm == WHITE { winc } else { binc };
+    if moves_to_go > 0 {
+        time /= moves_to_go as f64;
+        search_settings.lock().unwrap().time = time;
+    } else {
+        time /= 30.0;
+        search_settings.lock().unwrap().time = time;
+    }
+
+    if move_time != f64::MAX {
+        search_settings.lock().unwrap().time = move_time;
+    }
+
+    if infinite {
+        *search_settings.lock().unwrap() = SearchSettings::new();
+    }
+
+    let mut board = *board;
+    let search_settings = search_settings.clone();
+    thread::spawn(move || {
+        search_settings.lock().unwrap().start = Instant::now();
+        alpha_beta_search(&mut board, &search_settings);
+    });
 }
