@@ -1,6 +1,5 @@
-use std::time::Instant;
-
 use crate::board_state::{board::Board, move_gen::generate_moves};
+use std::time::Instant;
 
 pub fn print_perft(board: &mut Board, mut depth: usize) {
     if depth == 0 {

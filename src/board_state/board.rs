@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-
 use crate::board_state::{
     c_move::CMove,
     castling::{BLACK_KING, BLACK_QUEEN, WHITE_KING, WHITE_QUEEN, get_castling_rights_string},
@@ -11,6 +9,7 @@ use crate::board_state::{
     square_index::{ON_AND_OFF_BOARD_SQUARES, ON_BOARD_SQUARES, SQUARE_NAMES},
     zobrist_hasher::ZobristHasher,
 };
+use std::time::SystemTime;
 
 #[derive(Copy, Clone)]
 pub struct Board {

@@ -10,11 +10,7 @@ use crate::board_state::piece_type::WHITE;
 use crate::board_state::search::alpha_beta_search;
 use crate::board_state::search_settings::SearchSettings;
 
-pub fn uci_execute_command(
-    board: &mut Board,
-    search_settings: &Arc<Mutex<SearchSettings>>,
-    command: &str,
-) -> bool {
+pub fn uci(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>, command: &str) -> bool {
     let parts: Vec<&str> = command.split_whitespace().collect();
     let first_part = parts.first().unwrap_or(&"unknown");
     match *first_part {
