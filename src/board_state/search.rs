@@ -15,7 +15,9 @@ use crate::board_state::{
 };
 
 pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
-    let mi = generate_moves(board, true);
+    let mut mi = generate_moves(board);
+    mi.score_moves(board);
+
     let mut search_list = SearchList::new();
     search_list.set_from_c_move_list(&mi.c_move_list);
     search_list.sort_by_move_score(&mi.move_scores);
@@ -52,6 +54,9 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
                 return;
             }
             let c_move = search_list.moves[i];
+            if !mi.is_move_legal(board, &c_move) {
+                continue;
+            }
             board.make_move(&c_move);
             let score = alpha_beta(
                 board,
@@ -65,18 +70,18 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
 
             if board.stm == WHITE {
                 best_score = best_score.max(score);
+                alpha = alpha.max(score);
                 if best_score >= beta {
                     search_list.update_at_index(i, score, c_move);
                     break;
                 }
-                alpha = alpha.max(score);
             } else {
                 best_score = best_score.min(score);
+                beta = beta.min(score);
                 if best_score <= alpha {
                     search_list.update_at_index(i, score, c_move);
                     break;
                 }
-                beta = beta.min(score);
             }
             search_list.update_at_index(i, score, c_move);
         }
@@ -123,7 +128,7 @@ fn alpha_beta(
         return 0;
     }
 
-    let mut mi = generate_moves(board, true);
+    let mut mi = generate_moves(board);
     if mi.c_move_list.count == 0 {
         search_list.nodes += 1;
         let mate = if board.stm == WHITE { -MATE } else { MATE };
@@ -136,6 +141,7 @@ fn alpha_beta(
         return quiescence_search(board, search_list, search_settings, alpha, beta);
     }
 
+    mi.score_moves(board);
     mi.sort_by_score();
     let mut best_score = if board.stm == WHITE {
         i16::MIN
@@ -144,22 +150,25 @@ fn alpha_beta(
     };
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
+        if !mi.is_move_legal(board, &c_move) {
+            continue;
+        }
         board.make_move(&c_move);
         let score = alpha_beta(board, search_list, search_settings, depth - 1, alpha, beta);
         board.unmake_move(&c_move);
 
         if board.stm == WHITE {
             best_score = best_score.max(score);
+            alpha = alpha.max(score);
             if best_score >= beta {
                 break;
             }
-            alpha = alpha.max(score);
         } else {
             best_score = best_score.min(score);
+            beta = beta.min(score);
             if best_score <= alpha {
                 break;
             }
-            beta = beta.min(score);
         }
     }
     best_score
@@ -191,26 +200,30 @@ fn quiescence_search(
         return best_score;
     }
 
-    let mut mi = generate_capture_moves(board, true);
+    let mut mi = generate_capture_moves(board);
+    mi.score_moves(board);
     mi.sort_by_score();
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
+        if !mi.is_move_legal(board, &c_move) {
+            continue;
+        }
         board.make_move(&c_move);
         let score = quiescence_search(board, search_list, search_settings, alpha, beta);
         board.unmake_move(&c_move);
 
         if board.stm == WHITE {
             best_score = best_score.max(score);
+            alpha = alpha.max(score);
             if best_score >= beta {
                 break;
             }
-            alpha = alpha.max(score);
         } else {
             best_score = best_score.min(score);
+            beta = beta.min(score);
             if best_score <= alpha {
                 break;
             }
-            beta = beta.min(score);
         }
     }
     best_score

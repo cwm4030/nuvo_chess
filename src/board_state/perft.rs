@@ -8,11 +8,14 @@ pub fn print_perft(board: &mut Board, mut depth: usize) {
     }
 
     let now = Instant::now();
-    let mi = generate_moves(board, false);
+    let mi = generate_moves(board);
 
     let mut total_nodes = 0;
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
+        if !mi.is_move_legal(board, &c_move) {
+            continue;
+        }
         board.make_move(&c_move);
         let nodes = perft(board, depth - 1);
         println!("{}: {}", c_move.get_c_move_string(), nodes);
@@ -31,9 +34,16 @@ pub fn print_perft(board: &mut Board, mut depth: usize) {
 }
 
 pub fn perft(board: &mut Board, depth: usize) -> usize {
-    let mi = generate_moves(board, false);
+    let mi = generate_moves(board);
     if depth == 1 {
-        return mi.c_move_list.count;
+        let mut legal_moves = 0;
+        for i in 0..mi.c_move_list.count {
+            let c_move = mi.c_move_list.moves[i];
+            if mi.is_move_legal(board, &c_move) {
+                legal_moves += 1;
+            }
+        }
+        return legal_moves;
     } else if depth == 0 {
         return 1;
     }
@@ -41,6 +51,9 @@ pub fn perft(board: &mut Board, depth: usize) -> usize {
     let mut total_nodes = 0;
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
+        if !mi.is_move_legal(board, &c_move) {
+            continue;
+        }
         board.make_move(&c_move);
         total_nodes += perft(board, depth - 1);
         board.unmake_move(&c_move);

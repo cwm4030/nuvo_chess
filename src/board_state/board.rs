@@ -217,9 +217,12 @@ impl Board {
     }
 
     pub fn make_move_str(&mut self, c_move_str: &str) {
-        let mi = generate_moves(self, false);
+        let mi = generate_moves(self);
         for i in 0..mi.c_move_list.count {
             let c_move = mi.c_move_list.moves[i];
+            if !mi.is_move_legal(self, &c_move) {
+                continue;
+            }
             if c_move.get_c_move_string() == c_move_str {
                 self.make_move(&c_move);
                 return;
