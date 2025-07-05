@@ -7,6 +7,7 @@ use std::{
 
 use crate::board_state::{
     board::Board,
+    c_move::CMove,
     evaluation::evaluate_board,
     move_gen::{generate_capture_moves, generate_moves},
     piece_type::WHITE,
@@ -24,6 +25,7 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
 
     let mut search_list_result = search_list;
     let mut depth = 1;
+    let mut best_move = CMove::new();
     loop {
         if search_settings
             .lock()
@@ -41,16 +43,14 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
         } else {
             i16::MAX
         };
+        let mut current_best_move = CMove::new();
         for i in 0..search_list.count {
             if search_settings
                 .lock()
                 .unwrap()
                 .should_stop_search(depth, search_list.nodes)
             {
-                println!(
-                    "bestmove {}",
-                    search_list_result.moves[0].get_c_move_string()
-                );
+                println!("bestmove {}", best_move.get_c_move_string());
                 return;
             }
             let c_move = search_list.moves[i];
@@ -69,14 +69,20 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
             board.unmake_move(&c_move);
 
             if board.stm == WHITE {
-                best_score = best_score.max(score);
+                if score > best_score {
+                    best_score = score;
+                    current_best_move = c_move;
+                }
                 alpha = alpha.max(score);
                 if best_score >= beta {
                     search_list.update_at_index(i, score, c_move);
                     break;
                 }
             } else {
-                best_score = best_score.min(score);
+                if score < best_score {
+                    best_score = score;
+                    current_best_move = c_move;
+                }
                 beta = beta.min(score);
                 if best_score <= alpha {
                     search_list.update_at_index(i, score, c_move);
@@ -87,6 +93,7 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
         }
         search_list.sort_by_search_score(board.stm);
         search_list_result = search_list;
+        best_move = current_best_move;
         let elapsed = instant.elapsed().as_secs_f64();
         let nodes_per_second = if elapsed > 0_f64 {
             search_list.nodes as f64 / elapsed
@@ -95,7 +102,7 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
         };
         println!(
             "info depth {depth} score cp {best_score} pv {} nodes {} time {:.2} nps {:.2}",
-            search_list_result.moves[0].get_c_move_string(),
+            current_best_move.get_c_move_string(),
             search_list.nodes,
             elapsed * 1000.0,
             nodes_per_second
