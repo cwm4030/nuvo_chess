@@ -58,6 +58,8 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
                 continue;
             }
             board.make_move(&c_move);
+            board.zobrist_hash_history[board.history_index as usize] =
+                board.zobrist_hasher.get_zobrist_hash(board);
             let score = alpha_beta(
                 board,
                 &mut search_list,
@@ -109,9 +111,7 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
         );
         depth += 1;
     }
-    println!(
-        "bestmove {}", best_move.get_c_move_string()
-    );
+    println!("bestmove {}", best_move.get_c_move_string());
 }
 
 fn alpha_beta(
@@ -160,6 +160,8 @@ fn alpha_beta(
             continue;
         }
         board.make_move(&c_move);
+        board.zobrist_hash_history[board.history_index as usize] =
+            board.zobrist_hasher.get_zobrist_hash(board);
         let score = alpha_beta(board, search_list, search_settings, depth - 1, alpha, beta);
         board.unmake_move(&c_move);
 
@@ -215,6 +217,8 @@ fn quiescence_search(
             continue;
         }
         board.make_move(&c_move);
+        board.zobrist_hash_history[board.history_index as usize] =
+            board.zobrist_hasher.get_zobrist_hash(board);
         let score = quiescence_search(board, search_list, search_settings, alpha, beta);
         board.unmake_move(&c_move);
 

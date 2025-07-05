@@ -212,6 +212,8 @@ impl Board {
         self.halfmove = fen_halfmove.parse().unwrap_or(0) as u8;
         self.fullmove = fen_fullmove.parse().unwrap_or(1) as u16;
         self.history_index = 0;
+
+        self.zobrist_hash_history[0] = self.zobrist_hasher.get_zobrist_hash(self);
         self.play_following_moves(fen_moves);
     }
 
@@ -224,6 +226,8 @@ impl Board {
             }
             if c_move.get_c_move_string() == c_move_str {
                 self.make_move(&c_move);
+                self.zobrist_hash_history[self.history_index as usize] =
+                    self.zobrist_hasher.get_zobrist_hash(self);
                 return;
             }
         }
@@ -399,14 +403,15 @@ impl Board {
         }
     }
 
-    pub fn is_possible_three_move_repetition(&mut self) -> bool {
-        let current_zobrist_hash = self.zobrist_hasher.get_zobrist_hash(self);
-        for i in 0..self.history_index {
-            if self.zobrist_hash_history[i as usize] == current_zobrist_hash {
+    pub fn is_possible_three_move_repetition(&self) -> bool {
+        let zobrist_hash_start_index =
+            0_i32.max(self.history_index as i32 - self.halfmove as i32) as u8;
+        let latest_zobrist_hash = self.zobrist_hash_history[self.history_index as usize];
+        for i in zobrist_hash_start_index..self.history_index {
+            if self.zobrist_hash_history[i as usize] == latest_zobrist_hash {
                 return true;
             }
         }
-        self.zobrist_hash_history[self.history_index as usize] = current_zobrist_hash;
         false
     }
 
