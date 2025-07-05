@@ -110,8 +110,7 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
         depth += 1;
     }
     println!(
-        "bestmove {}",
-        search_list_result.moves[0].get_c_move_string()
+        "bestmove {}", best_move.get_c_move_string()
     );
 }
 
