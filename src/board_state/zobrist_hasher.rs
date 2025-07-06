@@ -1,8 +1,5 @@
 use crate::board_state::{
-    board::Board,
-    piece_type::{BLACK, EMPTY_SQUARE, OFF_BOARD_SQUARE, PIECE_MASK},
-    rng::Rng,
-    square_index::ON_BOARD_SQUARES,
+    board::Board, piece_type::BLACK, rng::Rng, square_index::RAW_INDEX_TO_64,
 };
 
 #[derive(Copy, Clone)]
@@ -53,20 +50,77 @@ impl ZobristHasher {
 
         hash ^= self.zobrist_castling_rights[board.castling_rights as usize];
 
-        for (i, &square_index) in ON_BOARD_SQUARES.iter().enumerate() {
-            let square = board.squares[square_index as usize];
-            if square == EMPTY_SQUARE {
-                continue;
-            }
-            let color_offset = match square & OFF_BOARD_SQUARE {
-                BLACK => 6,
-                _ => 0,
-            };
-            let piece_type = square & PIECE_MASK;
-            let piece_index = (piece_type + color_offset) as usize;
-            let zobrist_square_piece = self.zobrist_table[i][piece_index];
-            hash ^= zobrist_square_piece;
+        for i in 0..board.w_pawns {
+            let pawn_index = RAW_INDEX_TO_64[board.w_pawn_indexes[i as usize] as usize] as usize;
+            let zobrist_pawn = self.zobrist_table[pawn_index][0];
+            hash ^= zobrist_pawn;
         }
+
+        for i in 0..board.b_pawns {
+            let pawn_index = RAW_INDEX_TO_64[board.b_pawn_indexes[i as usize] as usize] as usize;
+            let zobrist_pawn = self.zobrist_table[pawn_index][6];
+            hash ^= zobrist_pawn;
+        }
+
+        for i in 0..board.w_knights {
+            let knight_index =
+                RAW_INDEX_TO_64[board.w_knight_indexes[i as usize] as usize] as usize;
+            let zobrist_knight = self.zobrist_table[knight_index][1];
+            hash ^= zobrist_knight;
+        }
+
+        for i in 0..board.b_knights {
+            let knight_index =
+                RAW_INDEX_TO_64[board.b_knight_indexes[i as usize] as usize] as usize;
+            let zobrist_knight = self.zobrist_table[knight_index][7];
+            hash ^= zobrist_knight;
+        }
+
+        for i in 0..board.w_bishops {
+            let bishop_index =
+                RAW_INDEX_TO_64[board.w_bishop_indexes[i as usize] as usize] as usize;
+            let zobrist_bishop = self.zobrist_table[bishop_index][2];
+            hash ^= zobrist_bishop;
+        }
+
+        for i in 0..board.b_bishops {
+            let bishop_index =
+                RAW_INDEX_TO_64[board.b_bishop_indexes[i as usize] as usize] as usize;
+            let zobrist_bishop = self.zobrist_table[bishop_index][8];
+            hash ^= zobrist_bishop;
+        }
+
+        for i in 0..board.w_rooks {
+            let rook_index = RAW_INDEX_TO_64[board.w_rook_indexes[i as usize] as usize] as usize;
+            let zobrist_rook = self.zobrist_table[rook_index][3];
+            hash ^= zobrist_rook;
+        }
+
+        for i in 0..board.b_rooks {
+            let rook_index = RAW_INDEX_TO_64[board.b_rook_indexes[i as usize] as usize] as usize;
+            let zobrist_rook = self.zobrist_table[rook_index][9];
+            hash ^= zobrist_rook;
+        }
+
+        for i in 0..board.w_queens {
+            let queen_index = RAW_INDEX_TO_64[board.w_queen_indexes[i as usize] as usize] as usize;
+            let zobrist_queen = self.zobrist_table[queen_index][4];
+            hash ^= zobrist_queen;
+        }
+
+        for i in 0..board.b_queens {
+            let queen_index = RAW_INDEX_TO_64[board.b_queen_indexes[i as usize] as usize] as usize;
+            let zobrist_queen = self.zobrist_table[queen_index][10];
+            hash ^= zobrist_queen;
+        }
+
+        let king_index = RAW_INDEX_TO_64[board.w_king_index as usize] as usize;
+        let zobrist_white_king = self.zobrist_table[king_index][5];
+        hash ^= zobrist_white_king;
+
+        let king_index = RAW_INDEX_TO_64[board.b_king_index as usize] as usize;
+        let zobrist_black_king = self.zobrist_table[king_index][11];
+        hash ^= zobrist_black_king;
 
         hash
     }
