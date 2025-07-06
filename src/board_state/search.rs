@@ -58,15 +58,15 @@ pub fn search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
         let nodes_per_second = if elapsed > 0_f64 {
             search_list.nodes as f64 / elapsed
         } else {
-            f64::INFINITY
+            f64::MAX
         };
         println!(
-            "info depth {depth} score cp {} pv {} nodes {} time {:.2} nps {:.2}",
+            "info depth {depth} score cp {} pv {} nodes {} time {} nps {}",
             search_list.best_score,
             pv_string,
             search_list.nodes,
-            elapsed * 1000.0,
-            nodes_per_second
+            (elapsed * 1000.0).floor(),
+            nodes_per_second.floor()
         );
         depth += 1;
     }
@@ -159,13 +159,6 @@ fn alpha_beta(
             .should_stop_search(depth, search_list.nodes)
     {
         return 0;
-    }
-
-    let mut mi = generate_moves(board);
-    if mi.get_num_legal_moves(board) == 0 {
-        search_list.nodes += 1;
-        let mate = if board.stm == WHITE { -MATE } else { MATE };
-        return if mi.check_count > 0 { mate } else { 0 };
     } else if board.is_possible_three_move_repetition() {
         search_list.nodes += 1;
         return 0;
@@ -174,6 +167,7 @@ fn alpha_beta(
         return quiescence_search(board, search_list, search_settings, alpha, beta);
     }
 
+    let mut mi = generate_moves(board);
     mi.score_moves(board);
     mi.sort_by_score();
     let mut best_score = if board.stm == WHITE {
@@ -211,6 +205,11 @@ fn alpha_beta(
                 add_transposition_entry(board, search_settings, c_move);
             }
         }
+    }
+    if best_score == i16::MIN || best_score == i16::MAX {
+        search_list.nodes += 1;
+        let mate = if board.stm == WHITE { -MATE } else { MATE };
+        return if mi.check_count > 0 { mate } else { 0 };
     }
     best_score
 }
