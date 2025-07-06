@@ -82,6 +82,9 @@ fn search_at_depth(
     mut alpha: i16,
     mut beta: i16,
 ) -> SearchList {
+    let original_alpha = alpha;
+    let original_beta = beta;
+    
     let mut sl = *search_list;
     sl.best_move = CMove::new();
     sl.best_score = if board.stm == WHITE {
@@ -114,28 +117,27 @@ fn search_at_depth(
                 sl.best_score = score;
                 sl.best_move = c_move;
             }
+            alpha = alpha.max(score);
             if sl.best_score >= beta {
                 break;
-            }
-            if score > alpha {
-                alpha = score;
-                add_transposition_entry(board, search_settings, c_move);
             }
         } else {
             if score < sl.best_score {
                 sl.best_score = score;
                 sl.best_move = c_move;
             }
+            beta = beta.min(score);
             if sl.best_score <= alpha {
                 break;
-            }
-            if score < beta {
-                beta = score;
-                add_transposition_entry(board, search_settings, c_move);
             }
         }
         sl.update_at_index(i, score, c_move);
     }
+
+    if alpha != original_alpha || beta != original_beta {
+        add_transposition_entry(board, search_settings, sl.best_move);
+    }
+
     sl.sort_by_search_score(board.stm);
     sl.completed = true;
     sl
@@ -149,6 +151,9 @@ fn alpha_beta(
     mut alpha: i16,
     mut beta: i16,
 ) -> i16 {
+    let original_alpha = alpha;
+    let original_beta = beta;
+
     if board.halfmove >= 50 {
         search_list.nodes += 1;
         return 0;
@@ -175,6 +180,7 @@ fn alpha_beta(
     } else {
         i16::MAX
     };
+    let mut best_move = CMove::new();
     for i in 0..mi.c_move_list.count {
         let c_move = mi.c_move_list.moves[i];
         if !mi.is_move_legal(board, &c_move) {
@@ -187,22 +193,22 @@ fn alpha_beta(
         board.unmake_move(&c_move);
 
         if board.stm == WHITE {
-            best_score = best_score.max(score);
+            if score > best_score {
+                best_score = score;
+                best_move = c_move;
+            }
+            alpha = alpha.max(score);
             if best_score >= beta {
                 break;
             }
-            if score > alpha {
-                alpha = score;
-                add_transposition_entry(board, search_settings, c_move);
-            }
         } else {
-            best_score = best_score.min(score);
+            if score < best_score {
+                best_score = score;
+                best_move = c_move;
+            }
+            beta = beta.min(score);
             if best_score <= alpha {
                 break;
-            }
-            if score < beta {
-                beta = score;
-                add_transposition_entry(board, search_settings, c_move);
             }
         }
     }
@@ -210,6 +216,10 @@ fn alpha_beta(
         search_list.nodes += 1;
         let mate = if board.stm == WHITE { -MATE } else { MATE };
         return if mi.check_count > 0 { mate } else { 0 };
+    }
+
+    if alpha != original_alpha || beta != original_beta {
+        add_transposition_entry(board, search_settings, best_move);
     }
     best_score
 }
@@ -256,16 +266,16 @@ fn quiescence_search(
 
         if board.stm == WHITE {
             best_score = best_score.max(score);
+            alpha = alpha.max(score);
             if best_score >= beta {
                 break;
             }
-            alpha = alpha.max(score);
         } else {
             best_score = best_score.min(score);
+            beta = beta.min(score);
             if best_score <= alpha {
                 break;
             }
-            beta = beta.min(score);
         }
     }
     best_score
