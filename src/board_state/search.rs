@@ -8,6 +8,7 @@ use crate::board_state::{
     piece_type::WHITE,
     search_list::SearchList,
     search_settings::SearchSettings,
+    transposition_table::TranspositionEntry,
 };
 use std::{
     sync::{Arc, Mutex},
@@ -47,6 +48,12 @@ pub fn search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
             break;
         }
 
+        let pv = get_pv(board, search_settings);
+        let pv_string = pv
+            .iter()
+            .map(|m| m.get_c_move_string())
+            .collect::<Vec<String>>()
+            .join(" ");
         let elapsed = instant.elapsed().as_secs_f64();
         let nodes_per_second = if elapsed > 0_f64 {
             search_list.nodes as f64 / elapsed
@@ -56,7 +63,7 @@ pub fn search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
         println!(
             "info depth {depth} score cp {} pv {} nodes {} time {:.2} nps {:.2}",
             search_list.best_score,
-            search_list.best_move.get_c_move_string(),
+            pv_string,
             search_list.nodes,
             elapsed * 1000.0,
             nodes_per_second
@@ -107,18 +114,24 @@ fn search_at_depth(
                 sl.best_score = score;
                 sl.best_move = c_move;
             }
-            alpha = alpha.max(score);
             if sl.best_score >= beta {
                 break;
+            }
+            if score > alpha {
+                alpha = score;
+                add_transposition_entry(board, search_settings, c_move);
             }
         } else {
             if score < sl.best_score {
                 sl.best_score = score;
                 sl.best_move = c_move;
             }
-            beta = beta.min(score);
             if sl.best_score <= alpha {
                 break;
+            }
+            if score < beta {
+                beta = score;
+                add_transposition_entry(board, search_settings, c_move);
             }
         }
         sl.update_at_index(i, score, c_move);
@@ -181,15 +194,21 @@ fn alpha_beta(
 
         if board.stm == WHITE {
             best_score = best_score.max(score);
-            alpha = alpha.max(score);
             if best_score >= beta {
                 break;
             }
+            if score > alpha {
+                alpha = score;
+                add_transposition_entry(board, search_settings, c_move);
+            }
         } else {
             best_score = best_score.min(score);
-            beta = beta.min(score);
             if best_score <= alpha {
                 break;
+            }
+            if score < beta {
+                beta = score;
+                add_transposition_entry(board, search_settings, c_move);
             }
         }
     }
@@ -238,17 +257,65 @@ fn quiescence_search(
 
         if board.stm == WHITE {
             best_score = best_score.max(score);
-            alpha = alpha.max(score);
             if best_score >= beta {
                 break;
             }
+            alpha = alpha.max(score);
         } else {
             best_score = best_score.min(score);
-            beta = beta.min(score);
             if best_score <= alpha {
                 break;
             }
+            beta = beta.min(score);
         }
     }
     best_score
+}
+
+fn add_transposition_entry(
+    board: &mut Board,
+    search_settings: &Arc<Mutex<SearchSettings>>,
+    c_move: CMove,
+) {
+    search_settings
+        .lock()
+        .unwrap()
+        .tt
+        .add_entry(TranspositionEntry {
+            zobrist_hash: board.zobrist_hash_history[board.history_index as usize],
+            best_move: c_move,
+        });
+}
+
+fn get_pv(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) -> Vec<CMove> {
+    let mut pv = Vec::with_capacity(64);
+    let mut current_board = *board;
+    let mut zobrist_hash = current_board
+        .zobrist_hasher
+        .get_zobrist_hash(&current_board);
+    while let Some(entry) = search_settings.lock().unwrap().tt.get_entry(zobrist_hash) {
+        let mi = generate_moves(&current_board);
+        let mut found_move = false;
+        for i in 0..mi.c_move_list.count {
+            let c_move = mi.c_move_list.moves[i];
+            if !mi.is_move_legal(&current_board, &c_move)
+                || c_move.from_index != entry.best_move.from_index
+                || c_move.to_index != entry.best_move.to_index
+                || c_move.promotion_piece != entry.best_move.promotion_piece
+            {
+                continue;
+            }
+
+            found_move = true;
+            pv.push(entry.best_move);
+            current_board.make_move(&entry.best_move);
+            zobrist_hash = current_board
+                .zobrist_hasher
+                .get_zobrist_hash(&current_board);
+        }
+        if !found_move {
+            break;
+        }
+    }
+    pv
 }

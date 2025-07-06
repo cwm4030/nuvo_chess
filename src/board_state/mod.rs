@@ -12,4 +12,5 @@ pub mod search;
 pub mod search_list;
 pub mod search_settings;
 pub mod square_index;
+pub mod transposition_table;
 pub mod zobrist_hasher;
