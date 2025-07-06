@@ -113,6 +113,16 @@ impl MoveInformation {
         self.c_move_list.sort_by_score(&self.move_scores);
     }
 
+    pub fn get_num_legal_moves(&self, board: &Board) -> usize {
+        let mut count = 0;
+        for i in 0..self.c_move_list.count {
+            if self.is_move_legal(board, &self.c_move_list.moves[i]) {
+                count += 1;
+            }
+        }
+        count
+    }
+
     pub fn is_move_legal(&self, board: &Board, c_move: &CMove) -> bool {
         let from_square = board.squares[c_move.from_index as usize];
         if from_square & PIECE_MASK == KING {

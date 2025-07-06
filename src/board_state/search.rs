@@ -1,21 +1,20 @@
 const MATE: i16 = i16::MAX - 1;
 
+use crate::board_state::{
+    board::Board,
+    c_move::CMove,
+    evaluation::evaluate_board,
+    move_gen::{MoveInformation, generate_capture_moves, generate_moves},
+    piece_type::WHITE,
+    search_list::SearchList,
+    search_settings::SearchSettings,
+};
 use std::{
     sync::{Arc, Mutex},
     time::Instant,
 };
 
-use crate::board_state::{
-    board::Board,
-    c_move::CMove,
-    evaluation::evaluate_board,
-    move_gen::{generate_capture_moves, generate_moves},
-    piece_type::WHITE,
-    search_list::SearchList,
-    search_settings::SearchSettings,
-};
-
-pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
+pub fn search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
     let mut mi = generate_moves(board);
     mi.score_moves(board);
 
@@ -23,79 +22,57 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
     search_list.set_from_c_move_list(&mi.c_move_list);
     search_list.sort_by_move_score(&mi.move_scores);
 
-    let mut search_list_result = search_list;
-    let mut depth = 1;
-    let mut best_move = CMove::new();
+    let mut guess = evaluate_board(board);
+    let mut alpha_window = 50_i16;
+    let mut beta_window = 50_i16;
+    let mut alpha = guess - alpha_window;
+    let mut beta = guess + beta_window;
+    let mut depth: usize = 1;
     loop {
         if search_settings
             .lock()
             .unwrap()
-            .should_stop_search(depth, search_list_result.nodes)
+            .should_stop_search(depth, search_list.nodes)
         {
             break;
         }
-        let instant = Instant::now();
-        search_list.nodes = 0;
-        let mut alpha = i16::MIN;
-        let mut beta = i16::MAX;
-        let mut best_score = if board.stm == WHITE {
-            i16::MIN
-        } else {
-            i16::MAX
-        };
-        let mut current_best_move = CMove::new();
-        for i in 0..search_list.count {
-            if search_settings
-                .lock()
-                .unwrap()
-                .should_stop_search(depth, search_list.nodes)
-            {
-                println!("bestmove {}", best_move.get_c_move_string());
-                return;
-            }
-            let c_move = search_list.moves[i];
-            if !mi.is_move_legal(board, &c_move) {
-                continue;
-            }
-            board.make_move(&c_move);
-            board.zobrist_hash_history[board.history_index as usize] =
-                board.zobrist_hasher.get_zobrist_hash(board);
-            let score = alpha_beta(
-                board,
-                &mut search_list,
-                search_settings,
-                depth - 1,
-                alpha,
-                beta,
-            );
-            board.unmake_move(&c_move);
 
-            if board.stm == WHITE {
-                if score > best_score {
-                    best_score = score;
-                    current_best_move = c_move;
-                }
-                alpha = alpha.max(score);
-                if best_score >= beta {
-                    search_list.update_at_index(i, score, c_move);
-                    break;
-                }
-            } else {
-                if score < best_score {
-                    best_score = score;
-                    current_best_move = c_move;
-                }
-                beta = beta.min(score);
-                if best_score <= alpha {
-                    search_list.update_at_index(i, score, c_move);
-                    break;
-                }
-            }
-            search_list.update_at_index(i, score, c_move);
+        let instant: Instant = Instant::now();
+        search_list.completed = false;
+        search_list = search_at_depth(
+            board,
+            &search_list,
+            search_settings,
+            &mi,
+            depth,
+            alpha,
+            beta,
+        );
+        if !search_list.completed {
+            break;
         }
-        search_list.sort_by_search_score(board.stm);
-        search_list_result = search_list;
-        best_move = current_best_move;
+
+        if search_list.best_score <= alpha {
+            alpha_window = alpha_window * 2;
+            alpha = search_list.best_score - alpha_window;
+            if alpha_window > 800 {
+                alpha = i16::MIN;
+            }
+            continue;
+        } else if search_list.best_score >= beta {
+            beta_window = beta_window * 2;
+            beta = search_list.best_score + beta_window;
+            if beta_window > 800 {
+                beta = i16::MAX;
+            }
+            continue;
+        }
+        guess = search_list.best_score;
+        alpha_window = 50_i16;
+        beta_window = 50_i16;
+        alpha = guess - alpha_window;
+        beta = guess + beta_window;
+
         let elapsed = instant.elapsed().as_secs_f64();
         let nodes_per_second = if elapsed > 0_f64 {
             search_list.nodes as f64 / elapsed
@@ -103,15 +80,78 @@ pub fn alpha_beta_search(board: &mut Board, search_settings: &Arc<Mutex<SearchSe
             f64::INFINITY
         };
         println!(
-            "info depth {depth} score cp {best_score} pv {} nodes {} time {:.2} nps {:.2}",
-            current_best_move.get_c_move_string(),
+            "info depth {depth} score cp {} pv {} nodes {} time {:.2} nps {:.2}",
+            search_list.best_score,
+            search_list.best_move.get_c_move_string(),
             search_list.nodes,
             elapsed * 1000.0,
             nodes_per_second
         );
         depth += 1;
     }
-    println!("bestmove {}", best_move.get_c_move_string());
+    println!("bestmove {}", search_list.best_move.get_c_move_string());
+}
+
+fn search_at_depth(
+    board: &mut Board,
+    search_list: &SearchList,
+    search_settings: &Arc<Mutex<SearchSettings>>,
+    mi: &MoveInformation,
+    depth: usize,
+    mut alpha: i16,
+    mut beta: i16,
+) -> SearchList {
+    let mut sl = *search_list;
+    sl.best_move = CMove::new();
+    sl.best_score = if board.stm == WHITE {
+        i16::MIN
+    } else {
+        i16::MAX
+    };
+    for i in 0..sl.count {
+        if search_settings
+            .lock()
+            .unwrap()
+            .should_stop_search(depth, search_list.nodes)
+        {
+            return *search_list;
+        }
+
+        let c_move = search_list.moves[i];
+        if !mi.is_move_legal(board, &c_move) {
+            continue;
+        }
+
+        board.make_move(&c_move);
+        board.zobrist_hash_history[board.history_index as usize] =
+            board.zobrist_hasher.get_zobrist_hash(board);
+        let score = alpha_beta(board, &mut sl, search_settings, depth - 1, alpha, beta);
+        board.unmake_move(&c_move);
+
+        if board.stm == WHITE {
+            if score > sl.best_score {
+                sl.best_score = score;
+                sl.best_move = c_move;
+            }
+            alpha = alpha.max(score);
+            if sl.best_score >= beta {
+                break;
+            }
+        } else {
+            if score < sl.best_score {
+                sl.best_score = score;
+                sl.best_move = c_move;
+            }
+            beta = beta.min(score);
+            if sl.best_score <= alpha {
+                break;
+            }
+        }
+        sl.update_at_index(i, score, c_move);
+    }
+    sl.sort_by_search_score(board.stm);
+    sl.completed = true;
+    sl
 }
 
 fn alpha_beta(
@@ -135,7 +175,7 @@ fn alpha_beta(
     }
 
     let mut mi = generate_moves(board);
-    if mi.c_move_list.count == 0 {
+    if mi.get_num_legal_moves(board) == 0 {
         search_list.nodes += 1;
         let mate = if board.stm == WHITE { -MATE } else { MATE };
         return if mi.check_count > 0 { mate } else { 0 };

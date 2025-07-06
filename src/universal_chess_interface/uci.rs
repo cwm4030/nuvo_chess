@@ -7,7 +7,7 @@ use crate::board_state::board::Board;
 use crate::board_state::evaluation::evaluate_board;
 use crate::board_state::perft;
 use crate::board_state::piece_type::WHITE;
-use crate::board_state::search::alpha_beta_search;
+use crate::board_state::search::search;
 use crate::board_state::search_settings::SearchSettings;
 
 pub fn uci(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>, command: &str) -> bool {
@@ -206,6 +206,6 @@ fn uci_go(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>, parts
     let search_settings = search_settings.clone();
     thread::spawn(move || {
         search_settings.lock().unwrap().start = Instant::now();
-        alpha_beta_search(&mut board, &search_settings);
+        search(&mut board, &search_settings);
     });
 }

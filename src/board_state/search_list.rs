@@ -6,6 +6,9 @@ pub struct SearchList {
     pub scores: [i16; 256],
     pub nodes: usize,
     pub count: usize,
+    pub best_move: CMove,
+    pub best_score: i16,
+    pub completed: bool,
 }
 
 impl SearchList {
@@ -15,6 +18,9 @@ impl SearchList {
             scores: [0; 256],
             nodes: 0,
             count: 0,
+            best_move: CMove::new(),
+            best_score: i16::MIN,
+            completed: false,
         }
     }
 
@@ -45,6 +51,9 @@ impl SearchList {
         }
         sorted_search_list.nodes = self.nodes;
         sorted_search_list.count = self.count;
+        sorted_search_list.best_move = self.best_move;
+        sorted_search_list.best_score = self.best_score;
+        sorted_search_list.completed = self.completed;
 
         *self = sorted_search_list;
     }
@@ -60,6 +69,9 @@ impl SearchList {
         }
         sorted_search_list.nodes = self.nodes;
         sorted_search_list.count = self.count;
+        sorted_search_list.best_move = self.best_move;
+        sorted_search_list.best_score = self.best_score;
+        sorted_search_list.completed = self.completed;
 
         *self = sorted_search_list;
     }

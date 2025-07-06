@@ -35,14 +35,7 @@ pub fn print_perft(board: &mut Board, mut depth: usize) {
 pub fn perft(board: &mut Board, depth: usize) -> usize {
     let mi = generate_moves(board);
     if depth == 1 {
-        let mut legal_moves = 0;
-        for i in 0..mi.c_move_list.count {
-            let c_move = mi.c_move_list.moves[i];
-            if mi.is_move_legal(board, &c_move) {
-                legal_moves += 1;
-            }
-        }
-        return legal_moves;
+        return mi.get_num_legal_moves(board);
     } else if depth == 0 {
         return 1;
     }
