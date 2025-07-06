@@ -48,7 +48,7 @@ pub fn search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
             break;
         }
 
-        let pv = get_pv(board, search_settings);
+        let pv = get_pv(board, search_settings, &search_list.best_move);
         let pv_string = pv
             .iter()
             .map(|m| m.get_c_move_string())
@@ -287,9 +287,15 @@ fn add_transposition_entry(
         });
 }
 
-fn get_pv(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) -> Vec<CMove> {
+fn get_pv(
+    board: &mut Board,
+    search_settings: &Arc<Mutex<SearchSettings>>,
+    best_move: &CMove,
+) -> Vec<CMove> {
     let mut pv = Vec::with_capacity(64);
+    pv.push(*best_move);
     let mut current_board = *board;
+    current_board.make_move(best_move);
     let mut zobrist_hash = current_board
         .zobrist_hasher
         .get_zobrist_hash(&current_board);
