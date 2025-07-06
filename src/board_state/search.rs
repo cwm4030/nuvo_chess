@@ -22,11 +22,6 @@ pub fn search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
     search_list.set_from_c_move_list(&mi.c_move_list);
     search_list.sort_by_move_score(&mi.move_scores);
 
-    let mut guess = evaluate_board(board);
-    let mut alpha_window = 50_i16;
-    let mut beta_window = 50_i16;
-    let mut alpha = guess - alpha_window;
-    let mut beta = guess + beta_window;
     let mut depth: usize = 1;
     loop {
         if search_settings
@@ -45,33 +40,12 @@ pub fn search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
             search_settings,
             &mi,
             depth,
-            alpha,
-            beta,
+            i16::MIN,
+            i16::MAX,
         );
         if !search_list.completed {
             break;
         }
-
-        if search_list.best_score <= alpha {
-            alpha_window = alpha_window * 2;
-            alpha = search_list.best_score - alpha_window;
-            if alpha_window > 800 {
-                alpha = i16::MIN;
-            }
-            continue;
-        } else if search_list.best_score >= beta {
-            beta_window = beta_window * 2;
-            beta = search_list.best_score + beta_window;
-            if beta_window > 800 {
-                beta = i16::MAX;
-            }
-            continue;
-        }
-        guess = search_list.best_score;
-        alpha_window = 50_i16;
-        beta_window = 50_i16;
-        alpha = guess - alpha_window;
-        beta = guess + beta_window;
 
         let elapsed = instant.elapsed().as_secs_f64();
         let nodes_per_second = if elapsed > 0_f64 {
