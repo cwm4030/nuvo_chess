@@ -84,7 +84,7 @@ fn search_at_depth(
 ) -> SearchList {
     let original_alpha = alpha;
     let original_beta = beta;
-    
+
     let mut sl = *search_list;
     sl.best_move = CMove::new();
     sl.best_score = if board.stm == WHITE {
@@ -151,24 +151,20 @@ fn alpha_beta(
     mut alpha: i16,
     mut beta: i16,
 ) -> i16 {
+    search_list.nodes += 1;
     let original_alpha = alpha;
     let original_beta = beta;
 
-    if board.halfmove >= 50 {
-        search_list.nodes += 1;
-        return 0;
-    } else if search_list.nodes & 2048 == 0
-        && search_settings
-            .lock()
-            .unwrap()
-            .should_stop_search(depth, search_list.nodes)
+    if board.halfmove >= 100
+        || board.is_possible_three_move_repetition()
+        || (search_list.nodes & 2048 == 0
+            && search_settings
+                .lock()
+                .unwrap()
+                .should_stop_search(depth, search_list.nodes))
     {
         return 0;
-    } else if board.is_possible_three_move_repetition() {
-        search_list.nodes += 1;
-        return 0;
     } else if depth == 0 {
-        search_list.nodes += 1;
         return quiescence_search(board, search_list, search_settings, alpha, beta);
     }
 
@@ -213,7 +209,6 @@ fn alpha_beta(
         }
     }
     if best_score == i16::MIN || best_score == i16::MAX {
-        search_list.nodes += 1;
         let mate = if board.stm == WHITE { -MATE } else { MATE };
         return if mi.check_count > 0 { mate } else { 0 };
     }
@@ -231,6 +226,7 @@ fn quiescence_search(
     mut alpha: i16,
     mut beta: i16,
 ) -> i16 {
+    search_list.nodes += 1;
     let se = evaluate_board(board);
     if search_settings
         .lock()
@@ -242,11 +238,9 @@ fn quiescence_search(
     let mut best_score = se;
     if board.stm == WHITE {
         if best_score >= beta {
-            search_list.nodes += 1;
             return best_score;
         }
     } else if best_score <= alpha {
-        search_list.nodes += 1;
         return best_score;
     }
 
