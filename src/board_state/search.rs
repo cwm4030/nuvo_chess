@@ -48,7 +48,7 @@ pub fn search(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>) {
             break;
         }
 
-        let pv = get_pv(board, search_settings, &search_list.best_move);
+        let pv = get_pv(board, search_settings, &search_list.best_move, depth);
         let pv_string = pv
             .iter()
             .map(|m| m.get_c_move_string())
@@ -294,6 +294,7 @@ fn get_pv(
     board: &mut Board,
     search_settings: &Arc<Mutex<SearchSettings>>,
     best_move: &CMove,
+    max_depth: usize,
 ) -> Vec<CMove> {
     let mut pv = Vec::with_capacity(64);
     pv.push(*best_move);
@@ -302,7 +303,10 @@ fn get_pv(
     let mut zobrist_hash = current_board
         .zobrist_hasher
         .get_zobrist_hash(&current_board);
-    while let Some(entry) = search_settings.lock().unwrap().tt.get_entry(zobrist_hash) {
+    let mut depth = 1;
+    while let Some(entry) = search_settings.lock().unwrap().tt.get_entry(zobrist_hash)
+        && depth <= max_depth
+    {
         let mi = generate_moves(&current_board);
         let mut found_move = false;
         for i in 0..mi.c_move_list.count {
@@ -321,6 +325,8 @@ fn get_pv(
             zobrist_hash = current_board
                 .zobrist_hasher
                 .get_zobrist_hash(&current_board);
+            depth += 1;
+            break;
         }
         if !found_move {
             break;
