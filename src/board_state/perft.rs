@@ -1,7 +1,7 @@
 use crate::board_state::{board::Board, move_gen::generate_moves};
 use std::time::Instant;
 
-pub fn print_perft(board: &mut Board, mut depth: usize) {
+pub fn print_perft(board: &mut Board, mut depth: usize, perft_full: bool) {
     if depth == 0 {
         depth = 1;
     }
@@ -16,7 +16,7 @@ pub fn print_perft(board: &mut Board, mut depth: usize) {
             continue;
         }
         board.make_move(&c_move);
-        let nodes = perft(board, depth - 1);
+        let nodes = perft(board, depth - 1, perft_full);
         println!("{}: {}", c_move.get_c_move_string(), nodes);
         total_nodes += nodes;
         board.unmake_move(&c_move);
@@ -32,12 +32,13 @@ pub fn print_perft(board: &mut Board, mut depth: usize) {
     println!();
 }
 
-pub fn perft(board: &mut Board, depth: usize) -> usize {
-    let mi = generate_moves(board);
-    if depth == 1 {
-        return mi.get_num_legal_moves(board);
-    } else if depth == 0 {
+pub fn perft(board: &mut Board, depth: usize, perft_full: bool) -> usize {
+    if depth == 0 && perft_full {
         return 1;
+    }
+    let mi = generate_moves(board);
+    if depth == 1 && !perft_full {
+        return mi.get_num_legal_moves(board);
     }
 
     let mut total_nodes = 0;
@@ -47,7 +48,7 @@ pub fn perft(board: &mut Board, depth: usize) -> usize {
             continue;
         }
         board.make_move(&c_move);
-        total_nodes += perft(board, depth - 1);
+        total_nodes += perft(board, depth - 1, perft_full);
         board.unmake_move(&c_move);
     }
 

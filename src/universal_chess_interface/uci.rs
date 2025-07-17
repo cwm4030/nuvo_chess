@@ -71,9 +71,18 @@ pub fn uci(board: &mut Board, search_settings: &Arc<Mutex<SearchSettings>>, comm
         "perft" => {
             if parts.len() > 1 {
                 let depth = parts[1].parse().unwrap_or(1) as usize;
-                perft::print_perft(board, depth);
+                perft::print_perft(board, depth, false);
             } else {
                 println!("Error: No depth provided for perft");
+            }
+            true
+        }
+        "perftfull" => {
+            if parts.len() > 1 {
+                let depth = parts[1].parse().unwrap_or(1) as usize;
+                perft::print_perft(board, depth, true);
+            } else {
+                println!("Error: No depth provided for full perft");
             }
             true
         }
