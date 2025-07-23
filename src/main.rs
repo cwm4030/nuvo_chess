@@ -1,5 +1,4 @@
 use crate::board_rep::board::Board;
-use std::io;
 
 pub mod board_rep;
 pub mod uci;
@@ -11,7 +10,7 @@ fn main() {
     let mut input = String::new();
     loop {
         input.clear();
-        io::stdin()
+        std::io::stdin()
             .read_line(&mut input)
             .expect("Failed to read line");
         if !uci::uci_command(input.as_str(), &mut board) {

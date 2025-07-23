@@ -354,14 +354,14 @@ impl Board {
             _ => return,
         };
         let rank = match en_passant.chars().nth(1).unwrap_or('0') {
-            '1' => 0,
-            '2' => 1,
-            '3' => 2,
-            '4' => 3,
-            '5' => 4,
-            '6' => 5,
-            '7' => 6,
-            '8' => 7,
+            '8' => 0,
+            '7' => 1,
+            '6' => 2,
+            '5' => 3,
+            '4' => 4,
+            '3' => 5,
+            '2' => 6,
+            '1' => 7,
             _ => return,
         };
         self.en_passant = (rank * 8 + file) as u8;
