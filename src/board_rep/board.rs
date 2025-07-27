@@ -11,6 +11,13 @@ pub const CASTLING_BQ: u8 = 8;
 
 pub const EN_PASSANT_NONE: u8 = 64;
 
+pub const PAWN: u8 = 1;
+pub const KNIGHT: u8 = 2;
+pub const BISHOP: u8 = 3;
+pub const ROOK: u8 = 4;
+pub const QUEEN: u8 = 5;
+pub const KING: u8 = 6;
+
 pub struct Board {
     pub stm: u8,
     pub castling: u8,

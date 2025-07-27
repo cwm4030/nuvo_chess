@@ -3,9 +3,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::board_rep::{
     bit_operations::{count_bits, first_bit_pop, is_bit_set, set_bit},
     directions::{
-        Direction, EAST, KING_MOVES, KNIGHT_MOVES, NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST, WEST
+        Direction, EAST, KING_MOVES, KNIGHT_MOVES, NORTH, NORTH_EAST, NORTH_WEST, SOUTH,
+        SOUTH_EAST, SOUTH_WEST, WEST,
     },
     rng::Rng,
+    squares::{A1, A2, A7, A8, H1, H2, H7, H8},
 };
 
 const ROOK_MAGICS: [u64; 64] = [
@@ -150,6 +152,10 @@ pub struct MagicBitboards {
     pub bishop_magics: [u64; 64],
     pub rook_attacks: [[u64; 4096]; 64],
     pub bishop_attacks: [[u64; 512]; 64],
+    pub w_pawn_non_capture: [u64; 64],
+    pub b_pawn_non_capture: [u64; 64],
+    pub w_pawn_capture: [u64; 64],
+    pub b_pawn_capture: [u64; 64],
     pub knight_attacks: [u64; 64],
     pub king_attacks: [u64; 64],
 }
@@ -170,6 +176,10 @@ impl MagicBitboards {
             bishop_magics: BISHOP_MAGICS,
             rook_attacks: [[0; 4096]; 64],
             bishop_attacks: [[0; 512]; 64],
+            w_pawn_non_capture: [0; 64],
+            b_pawn_non_capture: [0; 64],
+            w_pawn_capture: [0; 64],
+            b_pawn_capture: [0; 64],
             knight_attacks: [0; 64],
             king_attacks: [0; 64],
         };
@@ -213,6 +223,12 @@ impl MagicBitboards {
     }
 
     fn init_attacks(&mut self) {
+        self.generate_w_pawn_non_capture();
+        self.generate_b_pawn_non_capture();
+        self.generate_w_pawn_capture();
+        self.generate_b_pawn_capture();
+        self.generate_knight_attacks();
+        self.generate_king_attacks();
         for square in 0..64 {
             let rook_mask = self.rook_masks[square as usize];
             let bishop_mask = self.bishop_masks[square as usize];
@@ -238,8 +254,6 @@ impl MagicBitboards {
                     Self::generate_bishop_attacks(square as u8, occupancy);
             }
         }
-        self.generate_knight_attacks();
-        self.generate_king_attacks();
     }
 
     fn generate_rook_magic(&mut self, square: u8) {
@@ -338,15 +352,6 @@ impl MagicBitboards {
         mask
     }
 
-    fn generate_rook_attacks(square: u8, occupancy: u64) -> u64 {
-        let mut attacks = 0;
-        attacks |= Self::ray_attacks(square, occupancy, NORTH);
-        attacks |= Self::ray_attacks(square, occupancy, WEST);
-        attacks |= Self::ray_attacks(square, occupancy, EAST);
-        attacks |= Self::ray_attacks(square, occupancy, SOUTH);
-        attacks
-    }
-
     fn generate_bishop_mask(square: u8) -> u64 {
         let mut mask = 0;
         let file = (square % 8) as i8;
@@ -363,6 +368,15 @@ impl MagicBitboards {
             }
         }
         mask
+    }
+
+    fn generate_rook_attacks(square: u8, occupancy: u64) -> u64 {
+        let mut attacks = 0;
+        attacks |= Self::ray_attacks(square, occupancy, NORTH);
+        attacks |= Self::ray_attacks(square, occupancy, WEST);
+        attacks |= Self::ray_attacks(square, occupancy, EAST);
+        attacks |= Self::ray_attacks(square, occupancy, SOUTH);
+        attacks
     }
 
     fn generate_bishop_attacks(square: u8, occupancy: u64) -> u64 {
@@ -382,6 +396,7 @@ impl MagicBitboards {
         while (0..8).contains(&f) && (0..8).contains(&r) {
             let target_square = (r * 8 + f) as u8;
             if is_bit_set(occupancy, target_square) {
+                attacks |= set_bit(attacks, target_square);
                 break;
             }
             attacks |= set_bit(attacks, target_square);
@@ -389,6 +404,72 @@ impl MagicBitboards {
             r += direction.1;
         }
         attacks
+    }
+
+    fn generate_w_pawn_non_capture(&mut self) {
+        let direction = NORTH;
+        for square in 0..64 {
+            let mut file = (square % 8) as i8 + direction.0;
+            let mut rank = (square / 8) as i8 + direction.1;
+            let to_square = (rank * 8 + file) as u8;
+            if !(A8..=H8).contains(&square) {
+                self.w_pawn_non_capture[square as usize] = set_bit(0, to_square);
+            }
+
+            if (A2..=H2).contains(&square) {
+                file = (square % 8) as i8 + direction.0;
+                rank = (square / 8) as i8 + direction.1 * 2;
+                let to_square = (rank * 8 + file) as u8;
+                self.w_pawn_non_capture[square as usize] |= set_bit(0, to_square);
+            }
+        }
+    }
+
+    fn generate_b_pawn_non_capture(&mut self) {
+        let direction = SOUTH;
+        for square in 0..64 {
+            let mut file = (square % 8) as i8 + direction.0;
+            let mut rank = (square / 8) as i8 + direction.1;
+            let to_square = (rank * 8 + file) as u8;
+            if !(A1..=H1).contains(&square) {
+                self.b_pawn_non_capture[square as usize] = set_bit(0, to_square);
+            }
+
+            if (A7..=H7).contains(&square) {
+                file = (square % 8) as i8 + direction.0;
+                rank = (square / 8) as i8 + direction.1 * 2;
+                let to_square = (rank * 8 + file) as u8;
+                self.b_pawn_non_capture[square as usize] |= set_bit(0, to_square);
+            }
+        }
+    }
+
+    fn generate_w_pawn_capture(&mut self) {
+        let directions = [NORTH_WEST, NORTH_EAST];
+        for square in 0..64 {
+            for &direction in &directions {
+                let file = (square % 8) as i8 + direction.0;
+                let rank = (square / 8) as i8 + direction.1;
+                if (0..8).contains(&file) && (0..8).contains(&rank) {
+                    let to_square = (rank * 8 + file) as u8;
+                    self.w_pawn_capture[square as usize] |= set_bit(0, to_square);
+                }
+            }
+        }
+    }
+
+    fn generate_b_pawn_capture(&mut self) {
+        let directions = [SOUTH_WEST, SOUTH_EAST];
+        for square in 0..64 {
+            for &direction in &directions {
+                let file = (square % 8) as i8 + direction.0;
+                let rank = (square / 8) as i8 + direction.1;
+                if (0..8).contains(&file) && (0..8).contains(&rank) {
+                    let to_square = (rank * 8 + file) as u8;
+                    self.b_pawn_capture[square as usize] |= set_bit(0, to_square);
+                }
+            }
+        }
     }
 
     fn generate_knight_attacks(&mut self) {
