@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::board_rep::{
     bit_operations::{count_bits, first_bit_pop, is_bit_set, set_bit},
     directions::{
-        Direction, EAST, NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST, WEST,
+        Direction, EAST, KING_MOVES, KNIGHT_MOVES, NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST, WEST
     },
     rng::Rng,
 };
@@ -150,6 +150,8 @@ pub struct MagicBitboards {
     pub bishop_magics: [u64; 64],
     pub rook_attacks: [[u64; 4096]; 64],
     pub bishop_attacks: [[u64; 512]; 64],
+    pub knight_attacks: [u64; 64],
+    pub king_attacks: [u64; 64],
 }
 
 impl Default for MagicBitboards {
@@ -168,6 +170,8 @@ impl MagicBitboards {
             bishop_magics: BISHOP_MAGICS,
             rook_attacks: [[0; 4096]; 64],
             bishop_attacks: [[0; 512]; 64],
+            knight_attacks: [0; 64],
+            king_attacks: [0; 64],
         };
         magic_bitboards.init_masks();
         magic_bitboards.init_attacks();
@@ -234,6 +238,8 @@ impl MagicBitboards {
                     Self::generate_bishop_attacks(square as u8, occupancy);
             }
         }
+        self.generate_knight_attacks();
+        self.generate_king_attacks();
     }
 
     fn generate_rook_magic(&mut self, square: u8) {
@@ -383,6 +389,40 @@ impl MagicBitboards {
             r += direction.1;
         }
         attacks
+    }
+
+    fn generate_knight_attacks(&mut self) {
+        for square in 0..64 {
+            let mut attacks = 0;
+            let file = (square % 8) as i8;
+            let rank = (square / 8) as i8;
+
+            for &(df, dr) in &KNIGHT_MOVES {
+                let f = file + df;
+                let r = rank + dr;
+                if (0..8).contains(&f) && (0..8).contains(&r) {
+                    attacks |= set_bit(attacks, (r * 8 + f) as u8);
+                }
+            }
+            self.knight_attacks[square as usize] = attacks;
+        }
+    }
+
+    fn generate_king_attacks(&mut self) {
+        for square in 0..64 {
+            let mut attacks = 0;
+            let file = (square % 8) as i8;
+            let rank = (square / 8) as i8;
+
+            for &(df, dr) in &KING_MOVES {
+                let f = file + df;
+                let r = rank + dr;
+                if (0..8).contains(&f) && (0..8).contains(&r) {
+                    attacks |= set_bit(attacks, (r * 8 + f) as u8);
+                }
+            }
+            self.king_attacks[square as usize] = attacks;
+        }
     }
 
     fn next_magic_number(&mut self) -> u64 {
