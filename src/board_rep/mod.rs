@@ -1,5 +1,9 @@
+pub mod bit_operations;
 pub mod board;
 pub mod c_move;
 pub mod c_move_list;
-pub mod squares;
+pub mod directions;
+pub mod magic_bitboards;
 pub mod move_gen;
+pub mod rng;
+pub mod squares;

@@ -1,4 +1,4 @@
-use crate::board_rep::squares::SQUARE_NAMES;
+use crate::board_rep::{bit_operations::set_bit, squares::SQUARE_NAMES};
 
 const WHITE: u8 = 0;
 const BLACK: u8 = 1;
@@ -29,6 +29,9 @@ pub struct Board {
     pub b_queens: u64,
     pub w_king: u64,
     pub b_king: u64,
+    pub w_occupancy: u64,
+    pub b_occupancy: u64,
+    pub all_occupancy: u64,
 }
 
 impl Default for Board {
@@ -57,6 +60,9 @@ impl Board {
             b_queens: 0,
             w_king: 0,
             b_king: 0,
+            w_occupancy: 0,
+            b_occupancy: 0,
+            all_occupancy: 0,
         }
     }
 
@@ -270,51 +276,75 @@ impl Board {
                     square += c.to_digit(10).unwrap_or(1) as u8;
                 }
                 'P' => {
-                    self.w_pawns |= 1 << square;
+                    self.w_pawns = set_bit(self.w_pawns, square);
+                    self.w_occupancy = set_bit(self.w_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'p' => {
-                    self.b_pawns |= 1 << square;
+                    self.b_pawns = set_bit(self.b_pawns, square);
+                    self.b_occupancy = set_bit(self.b_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'N' => {
-                    self.w_knights |= 1 << square;
+                    self.w_knights = set_bit(self.w_knights, square);
+                    self.w_occupancy = set_bit(self.w_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'n' => {
-                    self.b_knights |= 1 << square;
+                    self.b_knights = set_bit(self.b_knights, square);
+                    self.b_occupancy = set_bit(self.b_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'B' => {
-                    self.w_bishops |= 1 << square;
+                    self.w_bishops = set_bit(self.w_bishops, square);
+                    self.w_occupancy = set_bit(self.w_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'b' => {
-                    self.b_bishops |= 1 << square;
+                    self.b_bishops = set_bit(self.b_bishops, square);
+                    self.b_occupancy = set_bit(self.b_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'R' => {
-                    self.w_rooks |= 1 << square;
+                    self.w_rooks = set_bit(self.w_rooks, square);
+                    self.w_occupancy = set_bit(self.w_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'r' => {
-                    self.b_rooks |= 1 << square;
+                    self.b_rooks = set_bit(self.b_rooks, square);
+                    self.b_occupancy = set_bit(self.b_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'Q' => {
-                    self.w_queens |= 1 << square;
+                    self.w_queens = set_bit(self.w_queens, square);
+                    self.w_occupancy = set_bit(self.w_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'q' => {
-                    self.b_queens |= 1 << square;
+                    self.b_queens = set_bit(self.b_queens, square);
+                    self.b_occupancy = set_bit(self.b_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'K' => {
-                    self.w_king |= 1 << square;
+                    self.w_king = set_bit(self.w_king, square);
+                    self.w_occupancy = set_bit(self.w_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 'k' => {
-                    self.b_king |= 1 << square;
+                    self.b_king = set_bit(self.b_king, square);
+                    self.b_occupancy = set_bit(self.b_occupancy, square);
+                    self.all_occupancy = set_bit(self.all_occupancy, square);
                     square += 1;
                 }
                 _ => {}

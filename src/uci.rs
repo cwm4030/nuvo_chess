@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::board_rep::board::Board;
+use crate::board_rep::{board::Board, magic_bitboards::MagicBitboards};
 
 pub fn uci_command(command: &str, board: &mut Board) -> bool {
     let parts: Vec<&str> = command
@@ -34,6 +34,11 @@ pub fn uci_command(command: &str, board: &mut Board) -> bool {
         }
         "printsimple" => {
             board.print(true);
+            true
+        }
+        "gen_magics" => {
+            let mut magic_bitboards = MagicBitboards::new();
+            magic_bitboards.generate_magic_numbers();
             true
         }
         "clear" => {
