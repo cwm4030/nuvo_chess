@@ -1,15 +1,15 @@
 use crate::board_rep::{bit_operations::set_bit, squares::SQUARE_NAMES};
 
-const WHITE: u8 = 0;
-const BLACK: u8 = 1;
+pub const WHITE: u8 = 0;
+pub const BLACK: u8 = 1;
 
-const CASTLING_NONE: u8 = 0;
-const CASTLING_WK: u8 = 1;
-const CASTLING_WQ: u8 = 2;
-const CASTLING_BK: u8 = 4;
-const CASTLING_BQ: u8 = 8;
+pub const CASTLING_NONE: u8 = 0;
+pub const CASTLING_WK: u8 = 1;
+pub const CASTLING_WQ: u8 = 2;
+pub const CASTLING_BK: u8 = 4;
+pub const CASTLING_BQ: u8 = 8;
 
-const EN_PASSANT_NONE: u8 = 64;
+pub const EN_PASSANT_NONE: u8 = 64;
 
 pub struct Board {
     pub stm: u8,
