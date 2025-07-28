@@ -5,5 +5,6 @@ pub mod c_move_list;
 pub mod directions;
 pub mod magic_bitboards;
 pub mod move_gen;
+pub mod perft;
 pub mod rng;
 pub mod squares;

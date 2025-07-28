@@ -1,7 +1,12 @@
-use crate::board_rep::{bit_operations::set_bit, squares::SQUARE_NAMES};
+use crate::board_rep::{
+    bit_operations::{clear_bit, is_bit_set, set_bit},
+    c_move::CMove,
+    squares::{A1, A8, C1, C8, D1, D8, E1, E8, G1, G8, H1, H8, SQUARE_NAMES},
+};
 
-pub const WHITE: u8 = 0;
-pub const BLACK: u8 = 1;
+pub const WHITE: u8 = 16;
+pub const BLACK: u8 = 32;
+pub const COLOR_MASK: u8 = WHITE | BLACK;
 
 pub const CASTLING_NONE: u8 = 0;
 pub const CASTLING_WK: u8 = 1;
@@ -11,13 +16,16 @@ pub const CASTLING_BQ: u8 = 8;
 
 pub const EN_PASSANT_NONE: u8 = 64;
 
+pub const EMPTY: u8 = 0;
 pub const PAWN: u8 = 1;
 pub const KNIGHT: u8 = 2;
 pub const BISHOP: u8 = 3;
 pub const ROOK: u8 = 4;
 pub const QUEEN: u8 = 5;
 pub const KING: u8 = 6;
+pub const PIECE_MASK: u8 = PAWN | KNIGHT | BISHOP | ROOK | QUEEN | KING;
 
+#[derive(Clone, Copy)]
 pub struct Board {
     pub stm: u8,
     pub castling: u8,
@@ -137,6 +145,107 @@ impl Board {
         }
         println!("      a  b  c  d  e  f  g  h");
         println!();
+    }
+
+    pub fn get_piece_at(&self, square: u8) -> u8 {
+        match square {
+            _ if !is_bit_set(self.all_occupancy, square) => EMPTY,
+            _ if is_bit_set(self.w_pawns, square) => WHITE | PAWN,
+            _ if is_bit_set(self.b_pawns, square) => BLACK | PAWN,
+            _ if is_bit_set(self.w_knights, square) => WHITE | KNIGHT,
+            _ if is_bit_set(self.b_knights, square) => BLACK | KNIGHT,
+            _ if is_bit_set(self.w_bishops, square) => WHITE | BISHOP,
+            _ if is_bit_set(self.b_bishops, square) => BLACK | BISHOP,
+            _ if is_bit_set(self.w_rooks, square) => WHITE | ROOK,
+            _ if is_bit_set(self.b_rooks, square) => BLACK | ROOK,
+            _ if is_bit_set(self.w_queens, square) => WHITE | QUEEN,
+            _ if is_bit_set(self.b_queens, square) => BLACK | QUEEN,
+            _ if is_bit_set(self.w_king, square) => WHITE | KING,
+            _ if is_bit_set(self.b_king, square) => BLACK | KING,
+            _ => EMPTY,
+        }
+    }
+
+    pub fn make_move(&mut self, c_move: CMove) {
+        let from_piece = self.get_piece_at(c_move.from_square);
+        let to_piece = self.get_piece_at(c_move.to_square);
+        if from_piece & PIECE_MASK == PAWN && c_move.to_square == self.en_passant {
+            let ep_pawn_index = self.get_ep_pawn_index();
+            self.set_piece_at(ep_pawn_index, EMPTY);
+        } else if from_piece & PIECE_MASK == KING {
+            if self.stm == WHITE {
+                self.castling =
+                    (self.castling | CASTLING_WK | CASTLING_WQ) ^ (CASTLING_WK | CASTLING_WQ);
+            } else {
+                self.castling =
+                    (self.castling | CASTLING_BK | CASTLING_BQ) ^ (CASTLING_BK | CASTLING_BQ);
+            }
+
+            if c_move.from_square == E1 && c_move.to_square == G1 {
+                self.set_piece_at(H1, EMPTY);
+                self.set_piece_at(G1, WHITE | ROOK);
+            } else if c_move.from_square == E1 && c_move.to_square == C1 {
+                self.set_piece_at(A1, EMPTY);
+                self.set_piece_at(D1, WHITE | ROOK);
+            } else if c_move.from_square == E8 && c_move.to_square == G8 {
+                self.set_piece_at(H8, EMPTY);
+                self.set_piece_at(G8, BLACK | ROOK);
+            } else if c_move.from_square == E8 && c_move.to_square == C8 {
+                self.set_piece_at(A8, EMPTY);
+                self.set_piece_at(D8, BLACK | ROOK);
+            }
+        }
+
+        if c_move.from_square == A1 || c_move.to_square == A1 {
+            self.castling = (self.castling | CASTLING_WQ) ^ CASTLING_WQ;
+        }
+        if c_move.from_square == H1 || c_move.to_square == H1 {
+            self.castling = (self.castling | CASTLING_WK) ^ CASTLING_WK;
+        }
+        if c_move.from_square == A8 || c_move.to_square == A8 {
+            self.castling = (self.castling | CASTLING_BQ) ^ CASTLING_BQ;
+        }
+        if c_move.from_square == H8 || c_move.to_square == H8 {
+            self.castling = (self.castling | CASTLING_BK) ^ CASTLING_BK;
+        }
+
+        self.set_piece_at(c_move.from_square, EMPTY);
+        self.set_piece_at(c_move.to_square, from_piece);
+        if c_move.promotion != 0 {
+            self.set_piece_at(c_move.to_square, EMPTY);
+            self.set_piece_at(c_move.to_square, self.stm | c_move.promotion);
+        }
+
+        let rank_diff = (c_move.to_square / 8) as i8 - (c_move.from_square / 8) as i8;
+        if from_piece & PIECE_MASK == PAWN && rank_diff.abs() == 2 {
+            self.en_passant = c_move.to_square;
+            if self.stm == WHITE {
+                self.en_passant += 8;
+            } else {
+                self.en_passant -= 8;
+            }
+        } else {
+            self.en_passant = EN_PASSANT_NONE;
+        }
+
+        if from_piece & PIECE_MASK == PAWN || to_piece != EMPTY {
+            self.halfmove_clock = 0;
+        } else {
+            self.halfmove_clock += 1;
+        }
+
+        self.fullmove_number += if self.stm == BLACK { 1 } else { 0 };
+        self.stm ^= COLOR_MASK;
+    }
+
+    pub fn get_ep_pawn_index(&self) -> u8 {
+        if self.en_passant == EN_PASSANT_NONE {
+            return EN_PASSANT_NONE;
+        }
+
+        let file = (self.en_passant % 8) as i8;
+        let rank = (self.en_passant / 8) as i8 + if self.stm == WHITE { -1 } else { 1 };
+        (rank * 8 + file) as u8
     }
 
     fn get_castling_str(&self) -> String {
@@ -283,79 +392,141 @@ impl Board {
                     square += c.to_digit(10).unwrap_or(1) as u8;
                 }
                 'P' => {
-                    self.w_pawns = set_bit(self.w_pawns, square);
-                    self.w_occupancy = set_bit(self.w_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, WHITE | PAWN);
                     square += 1;
                 }
                 'p' => {
-                    self.b_pawns = set_bit(self.b_pawns, square);
-                    self.b_occupancy = set_bit(self.b_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, BLACK | PAWN);
                     square += 1;
                 }
                 'N' => {
-                    self.w_knights = set_bit(self.w_knights, square);
-                    self.w_occupancy = set_bit(self.w_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, WHITE | KNIGHT);
                     square += 1;
                 }
                 'n' => {
-                    self.b_knights = set_bit(self.b_knights, square);
-                    self.b_occupancy = set_bit(self.b_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, BLACK | KNIGHT);
                     square += 1;
                 }
                 'B' => {
-                    self.w_bishops = set_bit(self.w_bishops, square);
-                    self.w_occupancy = set_bit(self.w_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, WHITE | BISHOP);
                     square += 1;
                 }
                 'b' => {
-                    self.b_bishops = set_bit(self.b_bishops, square);
-                    self.b_occupancy = set_bit(self.b_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, BLACK | BISHOP);
                     square += 1;
                 }
                 'R' => {
-                    self.w_rooks = set_bit(self.w_rooks, square);
-                    self.w_occupancy = set_bit(self.w_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, WHITE | ROOK);
                     square += 1;
                 }
                 'r' => {
-                    self.b_rooks = set_bit(self.b_rooks, square);
-                    self.b_occupancy = set_bit(self.b_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, BLACK | ROOK);
                     square += 1;
                 }
                 'Q' => {
-                    self.w_queens = set_bit(self.w_queens, square);
-                    self.w_occupancy = set_bit(self.w_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, WHITE | QUEEN);
                     square += 1;
                 }
                 'q' => {
-                    self.b_queens = set_bit(self.b_queens, square);
-                    self.b_occupancy = set_bit(self.b_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, BLACK | QUEEN);
                     square += 1;
                 }
                 'K' => {
-                    self.w_king = set_bit(self.w_king, square);
-                    self.w_occupancy = set_bit(self.w_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, WHITE | KING);
                     square += 1;
                 }
                 'k' => {
-                    self.b_king = set_bit(self.b_king, square);
-                    self.b_occupancy = set_bit(self.b_occupancy, square);
-                    self.all_occupancy = set_bit(self.all_occupancy, square);
+                    self.set_piece_at(square, BLACK | KING);
                     square += 1;
                 }
                 _ => {}
             }
+        }
+    }
+
+    fn set_piece_at(&mut self, square: u8, piece: u8) {
+        if square > H1 {
+            return;
+        }
+        match piece {
+            EMPTY => {
+                self.w_pawns = clear_bit(self.w_bishops, square);
+                self.b_pawns = clear_bit(self.b_pawns, square);
+                self.w_knights = clear_bit(self.w_knights, square);
+                self.b_knights = clear_bit(self.b_knights, square);
+                self.w_bishops = clear_bit(self.w_bishops, square);
+                self.b_bishops = clear_bit(self.b_bishops, square);
+                self.w_rooks = clear_bit(self.w_rooks, square);
+                self.b_rooks = clear_bit(self.b_rooks, square);
+                self.w_queens = clear_bit(self.w_queens, square);
+                self.b_queens = clear_bit(self.b_queens, square);
+                self.w_king = clear_bit(self.w_king, square);
+                self.b_king = clear_bit(self.b_king, square);
+                self.w_occupancy = clear_bit(self.w_occupancy, square);
+                self.b_occupancy = clear_bit(self.b_occupancy, square);
+                self.all_occupancy = clear_bit(self.all_occupancy, square);
+            }
+            x if x == (WHITE | PAWN) => {
+                self.w_pawns = set_bit(self.w_pawns, square);
+                self.w_occupancy = set_bit(self.w_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (BLACK | PAWN) => {
+                self.b_pawns = set_bit(self.b_pawns, square);
+                self.b_occupancy = set_bit(self.b_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (WHITE | KNIGHT) => {
+                self.w_knights = set_bit(self.w_knights, square);
+                self.w_occupancy = set_bit(self.w_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (BLACK | KNIGHT) => {
+                self.b_knights = set_bit(self.b_knights, square);
+                self.b_occupancy = set_bit(self.b_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (WHITE | BISHOP) => {
+                self.w_bishops = set_bit(self.w_bishops, square);
+                self.w_occupancy = set_bit(self.w_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (BLACK | BISHOP) => {
+                self.b_bishops = set_bit(self.b_bishops, square);
+                self.b_occupancy = set_bit(self.b_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (WHITE | ROOK) => {
+                self.w_rooks = set_bit(self.w_rooks, square);
+                self.w_occupancy = set_bit(self.w_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (BLACK | ROOK) => {
+                self.b_rooks = set_bit(self.b_rooks, square);
+                self.b_occupancy = set_bit(self.b_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (WHITE | QUEEN) => {
+                self.w_queens = set_bit(self.w_queens, square);
+                self.w_occupancy = set_bit(self.w_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (BLACK | QUEEN) => {
+                self.b_queens = set_bit(self.b_queens, square);
+                self.b_occupancy = set_bit(self.b_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (WHITE | KING) => {
+                self.w_king = set_bit(self.w_king, square);
+                self.w_occupancy = set_bit(self.w_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            x if x == (BLACK | KING) => {
+                self.b_king = set_bit(self.b_king, square);
+                self.b_occupancy = set_bit(self.b_occupancy, square);
+                self.all_occupancy = set_bit(self.all_occupancy, square);
+            }
+            _ => {}
         }
     }
 

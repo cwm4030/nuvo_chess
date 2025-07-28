@@ -1,8 +1,8 @@
 use std::io::Write;
 
-use crate::board_rep::{board::Board, magic_bitboards::MagicBitboards};
+use crate::board_rep::{board::Board, magic_bitboards::MagicBitboards, perft::print_perft};
 
-pub fn uci_command(command: &str, board: &mut Board) -> bool {
+pub fn uci_command(command: &str, board: &mut Board, magic_bitboards: &MagicBitboards) -> bool {
     let parts: Vec<&str> = command
         .split_whitespace()
         .filter(|s| !s.is_empty())
@@ -28,6 +28,11 @@ pub fn uci_command(command: &str, board: &mut Board) -> bool {
             true
         }
         "quit" => false,
+        "perft" => {
+            let depth: usize = parts.get(1).unwrap_or(&"1").parse().unwrap_or(1);
+            print_perft(board, magic_bitboards, depth, false);
+            true
+        }
         "print" => {
             board.print(false);
             true
