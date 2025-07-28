@@ -7,7 +7,7 @@ use crate::board_rep::{
         SOUTH_EAST, SOUTH_WEST, WEST,
     },
     rng::Rng,
-    squares::{A1, A2, A7, A8, H1, H2, H7, H8},
+    squares::{A1, A2, A7, A8, H1, H2, H7, H8, SQUARE_NAMES},
 };
 
 const ROOK_MAGICS: [u64; 64] = [
@@ -201,8 +201,10 @@ impl MagicBitboards {
         for square in 0..64 {
             self.generate_rook_magic(square as u8);
             self.generate_bishop_magic(square as u8);
+            println!("Generated magic for {}", SQUARE_NAMES[square as usize]);
         }
 
+        println!();
         println!("Rook Magics:");
         for square in 0..64 {
             println!("{},", self.rook_magics[square as usize]);
@@ -213,6 +215,7 @@ impl MagicBitboards {
         for square in 0..64 {
             println!("{},", self.bishop_magics[square as usize]);
         }
+        println!();
     }
 
     fn init_masks(&mut self) {
