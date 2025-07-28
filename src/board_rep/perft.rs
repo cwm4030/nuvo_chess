@@ -38,7 +38,7 @@ pub fn print_perft(
 }
 
 fn perft(board: &Board, magic_bitboards: &MagicBitboards, depth: usize, perft_full: bool) -> usize {
-    if depth == 0 && perft_full {
+    if depth == 0 {
         return 1;
     }
     let mi = generate_moves(board, magic_bitboards);

@@ -33,6 +33,11 @@ pub fn uci_command(command: &str, board: &mut Board, magic_bitboards: &MagicBitb
             print_perft(board, magic_bitboards, depth, false);
             true
         }
+        "perftfull" => {
+            let depth: usize = parts.get(1).unwrap_or(&"1").parse().unwrap_or(1);
+            print_perft(board, magic_bitboards, depth, true);
+            true
+        }
         "print" => {
             board.print(false);
             true
@@ -41,7 +46,7 @@ pub fn uci_command(command: &str, board: &mut Board, magic_bitboards: &MagicBitb
             board.print(true);
             true
         }
-        "gen_magics" => {
+        "genmagics" => {
             let mut magic_bitboards = MagicBitboards::new();
             magic_bitboards.generate_magic_numbers();
             true
