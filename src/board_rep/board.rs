@@ -1,6 +1,8 @@
 use crate::board_rep::{
     bit_operations::{clear_bit, is_bit_set, set_bit},
     c_move::CMove,
+    magic_bitboards::MagicBitboards,
+    move_gen::generate_moves,
     squares::{A1, A8, C1, C8, D1, D8, E1, E8, G1, G8, H1, H8, SQUARE_NAMES},
 };
 
@@ -81,14 +83,29 @@ impl Board {
         }
     }
 
-    pub fn set_from_fen(&mut self, fen: &str) {
-        let parts: Vec<&str> = fen.split_whitespace().filter(|s| !s.is_empty()).collect();
-        let pieces = parts.first().unwrap_or(&"");
-        let stm = parts.get(1).unwrap_or(&"w");
-        let castling = parts.get(2).unwrap_or(&"");
-        let en_passant = parts.get(3).unwrap_or(&"-");
-        let halfmove_clock = parts.get(4).unwrap_or(&"0").parse::<u8>().unwrap_or(0);
-        let fullmove_number = parts.get(5).unwrap_or(&"1").parse::<u16>().unwrap_or(1);
+    pub fn set_from_fen(&mut self, fen: &str, magic_bitboards: &MagicBitboards) {
+        let fen_and_moves = fen
+            .split("moves")
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<&str>>();
+        let fen_parts: Vec<&str> = fen_and_moves
+            .first()
+            .unwrap_or(&"")
+            .split_whitespace()
+            .filter(|s| !s.is_empty())
+            .collect();
+        let fen_moves = fen_and_moves
+            .get(1)
+            .unwrap_or(&"")
+            .split_whitespace()
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<&str>>();
+        let pieces = fen_parts.first().unwrap_or(&"");
+        let stm = fen_parts.get(1).unwrap_or(&"w");
+        let castling = fen_parts.get(2).unwrap_or(&"");
+        let en_passant = fen_parts.get(3).unwrap_or(&"-");
+        let halfmove_clock = fen_parts.get(4).unwrap_or(&"0").parse::<u8>().unwrap_or(0);
+        let fullmove_number = fen_parts.get(5).unwrap_or(&"1").parse::<u16>().unwrap_or(1);
 
         self.reset();
         self.set_pieces(pieces);
@@ -97,6 +114,20 @@ impl Board {
         self.set_en_passant(en_passant);
         self.halfmove_clock = halfmove_clock;
         self.fullmove_number = fullmove_number;
+        for move_str in fen_moves {
+            self.move_from_str(magic_bitboards, move_str);
+        }
+    }
+
+    pub fn move_from_str(&mut self, magic_bitboards: &MagicBitboards, move_str: &str) {
+        let mi = generate_moves(self, magic_bitboards);
+        for i in 0..mi.c_move_list.count {
+            let c_move = mi.c_move_list.moves[i];
+            if c_move.to_string() == move_str {
+                self.make_move(c_move);
+                return;
+            }
+        }
     }
 
     pub fn print(&self, use_ascii: bool) {
@@ -379,6 +410,9 @@ impl Board {
         self.b_queens = 0;
         self.w_king = 0;
         self.b_king = 0;
+        self.w_occupancy = 0;
+        self.b_occupancy = 0;
+        self.all_occupancy = 0;
     }
 
     fn set_pieces(&mut self, pieces: &str) {
@@ -449,8 +483,8 @@ impl Board {
             return;
         }
         match piece {
-            EMPTY => {
-                self.w_pawns = clear_bit(self.w_bishops, square);
+            x if x == EMPTY => {
+                self.w_pawns = clear_bit(self.w_pawns, square);
                 self.b_pawns = clear_bit(self.b_pawns, square);
                 self.w_knights = clear_bit(self.w_knights, square);
                 self.b_knights = clear_bit(self.b_knights, square);

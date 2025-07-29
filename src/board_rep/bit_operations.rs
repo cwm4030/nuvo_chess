@@ -5,7 +5,7 @@ pub fn set_bit(bitboard: u64, square: u8) -> u64 {
 
 #[inline(always)]
 pub fn clear_bit(bitboard: u64, square: u8) -> u64 {
-    bitboard & !(1 << square)
+    (bitboard | (1 << square)) ^ (1 << square)
 }
 
 #[inline(always)]
@@ -59,4 +59,5 @@ pub fn print_bitboard(bitboard: u64) {
         }
         println!();
     }
+    println!();
 }

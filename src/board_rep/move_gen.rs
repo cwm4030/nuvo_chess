@@ -1,6 +1,6 @@
 use crate::board_rep::{
     bit_operations::{count_bits, first_bit, first_bit_pop, set_bit},
-    board::{Board, EN_PASSANT_NONE, KING, KNIGHT, PAWN, PIECE_MASK, WHITE},
+    board::{Board, EMPTY, EN_PASSANT_NONE, KING, KNIGHT, PAWN, PIECE_MASK, WHITE},
     c_move::CMove,
     c_move_list::CMoveList,
     magic_bitboards::MagicBitboards,
@@ -194,14 +194,20 @@ fn generate_w_pawn_moves(
     non_capture_pawn_moves &= empty_squares;
 
     let mut capture_pawn_moves = magic_bitboards.w_pawn_capture[square as usize];
-    capture_pawn_moves &= opponent_occupancy | board.en_passant as u64;
+    capture_pawn_moves &= opponent_occupancy | set_bit(0, board.en_passant);
 
     let mut pawn_moves = non_capture_pawn_moves | capture_pawn_moves;
     while pawn_moves != 0 {
         let target_square = first_bit_pop(&mut pawn_moves);
+        let rank_diff = ((target_square / 8) as i8 - (square / 8) as i8).abs();
         if target_square <= H8 {
             for promotion in KNIGHT..KING {
                 mi.c_move_list.add_move(square, target_square, promotion);
+            }
+        } else if rank_diff == 2 {
+            let up_one_piece = board.get_piece_at(target_square + 8);
+            if up_one_piece & PIECE_MASK == EMPTY {
+                mi.c_move_list.add_move(square, target_square, 0);
             }
         } else {
             mi.c_move_list.add_move(square, target_square, 0);
@@ -221,14 +227,20 @@ fn generate_b_pawn_moves(
     non_capture_pawn_moves &= empty_squares;
 
     let mut capture_pawn_moves = magic_bitboards.b_pawn_capture[square as usize];
-    capture_pawn_moves &= opponent_occupancy | board.en_passant as u64;
+    capture_pawn_moves &= opponent_occupancy | set_bit(0, board.en_passant);
 
     let mut pawn_moves = non_capture_pawn_moves | capture_pawn_moves;
     while pawn_moves != 0 {
         let target_square = first_bit_pop(&mut pawn_moves);
+        let rank_diff = ((target_square / 8) as i8 - (square / 8) as i8).abs();
         if target_square > H2 {
             for promotion in KNIGHT..KING {
                 mi.c_move_list.add_move(square, target_square, promotion);
+            }
+        } else if rank_diff == 2 {
+            let up_one_piece = board.get_piece_at(target_square - 8);
+            if up_one_piece & PIECE_MASK == EMPTY {
+                mi.c_move_list.add_move(square, target_square, 0);
             }
         } else {
             mi.c_move_list.add_move(square, target_square, 0);
@@ -246,9 +258,7 @@ fn generate_knight_moves(
     knight_moves &= attackable_squares;
     while knight_moves != 0 {
         let target_square = first_bit_pop(&mut knight_moves);
-        if target_square < 64 {
-            mi.c_move_list.add_move(square, target_square, 0);
-        }
+        mi.c_move_list.add_move(square, target_square, 0);
     }
 }
 
@@ -268,9 +278,7 @@ fn generate_bishop_moves(
     bishop_moves &= attackable_squares;
     while bishop_moves != 0 {
         let target_square = first_bit_pop(&mut bishop_moves);
-        if target_square < 64 {
-            mi.c_move_list.add_move(square, target_square, 0);
-        }
+        mi.c_move_list.add_move(square, target_square, 0);
     }
 }
 
@@ -290,9 +298,7 @@ fn generate_rook_moves(
     rook_moves &= attackable_squares;
     while rook_moves != 0 {
         let target_square = first_bit_pop(&mut rook_moves);
-        if target_square < 64 {
-            mi.c_move_list.add_move(square, target_square as u8, 0);
-        }
+        mi.c_move_list.add_move(square, target_square as u8, 0);
     }
 }
 
@@ -306,9 +312,7 @@ fn generate_king_moves(
     king_moves &= attackable_squares;
     while king_moves != 0 {
         let target_square = first_bit_pop(&mut king_moves);
-        if target_square < 64 {
-            mi.c_move_list.add_move(square, target_square, 0);
-        }
+        mi.c_move_list.add_move(square, target_square, 0);
     }
 }
 
@@ -378,7 +382,8 @@ fn is_square_attacked(board: &Board, magic_bitboards: &MagicBitboards, square: u
 }
 
 fn generate_move_info(board: &Board, magic_bitboards: &MagicBitboards) -> MoveInfo {
-    let stm_king: u64;
+    let stm_king_square: u64;
+    let stm_kings: u64;
     let stm_occupancy: u64;
     let mut pawn_attacks: u64;
     let ep_pin_squares = get_ep_pin_squares(board);
@@ -387,24 +392,26 @@ fn generate_move_info(board: &Board, magic_bitboards: &MagicBitboards) -> MoveIn
     let opponent_knights: u64;
     let opponent_pawns: u64;
     if board.stm == WHITE {
-        stm_king = first_bit(board.w_king) as u64;
+        stm_king_square = first_bit(board.w_king) as u64;
+        stm_kings = board.w_king;
         stm_occupancy = board.w_occupancy;
-        pawn_attacks = magic_bitboards.w_pawn_capture[stm_king as usize];
+        pawn_attacks = magic_bitboards.w_pawn_capture[stm_king_square as usize];
         opponent_rook_queens = board.b_rooks | board.b_queens;
         opponent_bishop_queens = board.b_bishops | board.b_queens;
         opponent_knights = board.b_knights;
         opponent_pawns = board.b_pawns;
     } else {
-        stm_king = first_bit(board.b_king) as u64;
+        stm_king_square = first_bit(board.b_king) as u64;
+        stm_kings = board.b_king;
         stm_occupancy = board.b_occupancy;
-        pawn_attacks = magic_bitboards.b_pawn_capture[stm_king as usize];
+        pawn_attacks = magic_bitboards.b_pawn_capture[stm_king_square as usize];
         opponent_rook_queens = board.w_rooks | board.w_queens;
         opponent_bishop_queens = board.w_bishops | board.w_queens;
         opponent_knights = board.w_knights;
         opponent_pawns = board.w_pawns;
     }
     let mut mi = MoveInfo::new();
-    let mut pinner: u8 = 0;
+    let mut pinner: u8 = 1;
 
     pawn_attacks &= opponent_pawns;
     if pawn_attacks != 0 {
@@ -421,7 +428,7 @@ fn generate_move_info(board: &Board, magic_bitboards: &MagicBitboards) -> MoveIn
         mi.pin_defend_map[ep_pawn_index as usize] |= DEFEND;
     }
 
-    let mut knight_attacks = magic_bitboards.knight_attacks[stm_king as usize];
+    let mut knight_attacks = magic_bitboards.knight_attacks[stm_king_square as usize];
     knight_attacks &= opponent_knights;
     if knight_attacks != 0 {
         mi.check_count += count_bits(knight_attacks) as u8;
@@ -431,12 +438,12 @@ fn generate_move_info(board: &Board, magic_bitboards: &MagicBitboards) -> MoveIn
         }
     }
 
-    let rook_mask = magic_bitboards.rook_masks[stm_king as usize];
+    let rook_mask = magic_bitboards.rook_masks[stm_king_square as usize];
     let rook_mask_bits = count_bits(rook_mask);
-    let rook_key = rook_mask & (board.all_occupancy ^ stm_king);
-    let rook_magic = magic_bitboards.rook_magics[stm_king as usize];
+    let rook_key = rook_mask & (board.all_occupancy ^ stm_kings);
+    let rook_magic = magic_bitboards.rook_magics[stm_king_square as usize];
     let rook_index = MagicBitboards::magic_function(rook_key, rook_magic, rook_mask_bits as u8);
-    let rook_attacks = magic_bitboards.rook_attacks[stm_king as usize][rook_index as usize];
+    let rook_attacks = magic_bitboards.rook_attacks[stm_king_square as usize][rook_index as usize];
     let mut rook_attackers = rook_attacks & opponent_rook_queens;
     let ep_possible_pin = rook_attacks & ep_pin_squares;
     let mut possible_pins = rook_attacks & stm_occupancy;
@@ -446,10 +453,11 @@ fn generate_move_info(board: &Board, magic_bitboards: &MagicBitboards) -> MoveIn
             let target_square = first_bit_pop(&mut rook_attackers);
             mi.pin_defend_map[target_square as usize] |= DEFEND;
         }
-    } else if ep_possible_pin != 0 {
-        let rook_key = rook_mask & (board.all_occupancy ^ (stm_king | ep_possible_pin));
+    }
+    if ep_possible_pin != 0 {
+        let rook_key = rook_mask & (board.all_occupancy ^ (stm_kings | ep_possible_pin));
         let rook_index = MagicBitboards::magic_function(rook_key, rook_magic, rook_mask_bits as u8);
-        let rook_attacks = magic_bitboards.rook_attacks[stm_king as usize][rook_index as usize];
+        let rook_attacks = magic_bitboards.rook_attacks[stm_king_square as usize][rook_index as usize];
         let mut pin_squares = rook_attacks & opponent_rook_queens;
         if pin_squares != 0 {
             mi.pin_defend_map[board.en_passant as usize] |= EP_PIN;
@@ -459,13 +467,14 @@ fn generate_move_info(board: &Board, magic_bitboards: &MagicBitboards) -> MoveIn
             }
             pinner += 1;
         }
-    } else if possible_pins != 0 {
+    }
+    if possible_pins != 0 {
         while possible_pins != 0 {
             let possible_pin = first_bit_pop(&mut possible_pins) as u64;
-            let rook_key = rook_mask & (board.all_occupancy ^ (stm_king | possible_pin));
+            let rook_key = rook_mask & (board.all_occupancy ^ (stm_kings | possible_pin));
             let rook_index =
                 MagicBitboards::magic_function(rook_key, rook_magic, rook_mask_bits as u8);
-            let rook_attacks = magic_bitboards.rook_attacks[stm_king as usize][rook_index as usize];
+            let rook_attacks = magic_bitboards.rook_attacks[stm_king_square as usize][rook_index as usize];
             let mut pin_squares = rook_attacks & opponent_rook_queens;
             if pin_squares != 0 {
                 while pin_squares != 0 {
@@ -477,13 +486,13 @@ fn generate_move_info(board: &Board, magic_bitboards: &MagicBitboards) -> MoveIn
         }
     }
 
-    let bishop_mask = magic_bitboards.bishop_masks[stm_king as usize];
+    let bishop_mask = magic_bitboards.bishop_masks[stm_king_square as usize];
     let bishop_mask_bits = count_bits(bishop_mask);
-    let bishop_key = bishop_mask & (board.all_occupancy ^ stm_king);
-    let bishop_magic = magic_bitboards.bishop_magics[stm_king as usize];
+    let bishop_key = bishop_mask & (board.all_occupancy ^ stm_kings);
+    let bishop_magic = magic_bitboards.bishop_magics[stm_king_square as usize];
     let bishop_index =
         MagicBitboards::magic_function(bishop_key, bishop_magic, bishop_mask_bits as u8);
-    let bishop_attacks = magic_bitboards.bishop_attacks[stm_king as usize][bishop_index as usize];
+    let bishop_attacks = magic_bitboards.bishop_attacks[stm_king_square as usize][bishop_index as usize];
     let mut bishop_attackers = bishop_attacks & opponent_bishop_queens;
     let mut possible_pins = bishop_attacks & stm_occupancy;
     if bishop_attackers != 0 {
@@ -492,18 +501,20 @@ fn generate_move_info(board: &Board, magic_bitboards: &MagicBitboards) -> MoveIn
             let target_square = first_bit_pop(&mut bishop_attackers);
             mi.pin_defend_map[target_square as usize] |= DEFEND;
         }
-    } else if possible_pins != 0 {
+    }
+    if possible_pins != 0 {
         while possible_pins != 0 {
-            let possible_pin = first_bit_pop(&mut possible_pins) as u64;
-            let bishop_key = bishop_mask & (board.all_occupancy ^ (stm_king | possible_pin));
+            let possible_pin_square = first_bit_pop(&mut possible_pins);
+            let possible_pin = set_bit(0, possible_pin_square);
+            let bishop_key = bishop_mask & (board.all_occupancy ^ (stm_kings | possible_pin));
             let bishop_index =
                 MagicBitboards::magic_function(bishop_key, bishop_magic, bishop_mask_bits as u8);
-            let bishop_attacks =
-                magic_bitboards.bishop_attacks[stm_king as usize][bishop_index as usize];
-            let mut pin_squares = bishop_attacks & opponent_bishop_queens;
-            if pin_squares != 0 {
-                while pin_squares != 0 {
-                    let pin_square = first_bit_pop(&mut pin_squares);
+            let mut bishop_attacks =
+                magic_bitboards.bishop_attacks[stm_king_square as usize][bishop_index as usize];
+            let is_pin = (bishop_attacks & opponent_bishop_queens) != 0;
+            if is_pin {
+                while bishop_attacks != 0 {
+                    let pin_square = first_bit_pop(&mut bishop_attacks);
                     mi.pin_defend_map[pin_square as usize] |= pinner;
                 }
                 pinner += 1;

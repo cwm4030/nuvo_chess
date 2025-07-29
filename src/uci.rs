@@ -20,10 +20,16 @@ pub fn uci_command(command: &str, board: &mut Board, magic_bitboards: &MagicBitb
         }
         "position" => {
             if parts.get(1).unwrap_or(&"") == &"startpos" {
-                board.set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+                let mut fen =
+                    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".to_string();
+                let moves = parts.get(3..).unwrap_or(&[]).join(" ");
+                if !moves.is_empty() {
+                    fen = format!("{fen} moves {moves}");
+                }
+                board.set_from_fen(fen.as_str(), magic_bitboards);
             } else if parts.get(1).unwrap_or(&"") == &"fen" {
                 let fen = parts.get(2..).unwrap_or(&[""]).join(" ");
-                board.set_from_fen(fen.as_str());
+                board.set_from_fen(fen.as_str(), magic_bitboards);
             }
             true
         }
@@ -44,6 +50,11 @@ pub fn uci_command(command: &str, board: &mut Board, magic_bitboards: &MagicBitb
         }
         "printsimple" => {
             board.print(true);
+            true
+        }
+        "move" => {
+            let move_str = parts.get(1).unwrap_or(&"");
+            board.move_from_str(magic_bitboards, move_str);
             true
         }
         "genmagics" => {

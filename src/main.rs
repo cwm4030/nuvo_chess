@@ -6,7 +6,10 @@ pub mod uci;
 fn main() {
     let mut board = Board::new();
     let magic_bitboards = MagicBitboards::new();
-    board.set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    board.set_from_fen(
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        &magic_bitboards,
+    );
 
     let mut input = String::new();
     loop {
